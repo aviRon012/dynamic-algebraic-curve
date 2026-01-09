@@ -63,21 +63,37 @@ export class Solver {
         
         for (let r = 0; r < nRows; r++) {
             if (nCols <= lead) break;
-            let i = r;
-            while (this.matrix[i][lead] === 0) {
-                i++;
-                if (nRows === i) {
-                    i = r;
-                    lead++;
-                    if (nCols === lead) return this.prevCoeffs;
+            
+            // Partial Pivoting
+            let maxRow = r;
+            let maxVal = Math.abs(this.matrix[r][lead]);
+            
+            for (let i = r + 1; i < nRows; i++) {
+                let currVal = Math.abs(this.matrix[i][lead]);
+                if (currVal > maxVal) {
+                    maxVal = currVal;
+                    maxRow = i;
                 }
             }
-            let temp = this.matrix[i];
-            this.matrix[i] = this.matrix[r];
-            this.matrix[r] = temp;
+
+            // If the pivot column is zero (singular), move to next column
+            const EPSILON = 1e-10;
+            const pivotScale = Math.max(1.0, maxVal); // Avoid division by zero issues if maxVal is tiny
+            
+            if (maxVal < EPSILON * pivotScale) {
+                lead++;
+                r--; // Stay on this row, check next column
+                continue;
+            }
+
+            // Swap rows
+            let temp = this.matrix[r];
+            this.matrix[r] = this.matrix[maxRow];
+            this.matrix[maxRow] = temp;
+            
             let val = this.matrix[r][lead];
-            if (Math.abs(val) < 1e-9) return this.prevCoeffs;
             for (let j = 0; j < nCols; j++) this.matrix[r][j] /= val;
+            
             for (let k = 0; k < nRows; k++) {
                 if (k === r) continue;
                 val = this.matrix[k][lead];
