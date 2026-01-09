@@ -1,6 +1,13 @@
 import { params } from './Params.js';
 
+/**
+ * Manages the User Interface and Inputs.
+ * Bridges the DOM (Buttons, Mouse, Keyboard) with the Simulation logic.
+ */
 export class UIManager {
+    /**
+     * @param {import('./Simulation.js').Simulation} simulation 
+     */
     constructor(simulation) {
         this.sim = simulation;
         this.draggedParticle = null;
@@ -59,7 +66,7 @@ export class UIManager {
         const mouseX = e.clientX;
         const mouseY = e.clientY;
         
-        // Find closest particle
+        // Find closest particle within hit radius
         for (let p of this.sim.particles) {
             const dx = p.pos.x - mouseX;
             const dy = p.pos.y - mouseY;

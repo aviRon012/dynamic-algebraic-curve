@@ -7,7 +7,15 @@ const vsSource = `
     }
 `;
 
+/**
+ * Handles WebGL rendering of the implicit curve.
+ * Dynamically generates Fragment Shaders based on the curve degree.
+ */
 export class Renderer {
+    /**
+     * @param {WebGLRenderingContext} gl 
+     * @param {number} degree 
+     */
     constructor(gl, degree) {
         this.gl = gl;
         this.degree = degree;
@@ -26,6 +34,9 @@ export class Renderer {
         this.init();
     }
 
+    /**
+     * Cleans up WebGL resources (buffers, shaders, programs) to prevent memory leaks.
+     */
     dispose() {
         const gl = this.gl;
         if (this.buffer) {
@@ -42,11 +53,24 @@ export class Renderer {
         }
     }
 
+    /**
+     * Updates viewport and scale uniform.
+     * @param {number} width 
+     * @param {number} height 
+     * @param {number} scale 
+     */
     resize(width, height, scale) {
         this.width = width;
         this.height = height;
         this.scale = scale;
         this.gl.viewport(0, 0, width, height);
+    }
+
+    /**
+     * Clears the WebGL canvas (used when curve visibility is toggled off).
+     */
+    clear() {
+        this.gl.clear(this.gl.COLOR_BUFFER_BIT);
     }
 
     generateTerms(degree) {
@@ -60,6 +84,11 @@ export class Renderer {
         return terms;
     }
 
+    /**
+     * Generates the GLSL Fragment Shader source code.
+     * Constructs the polynomial evaluation string dynamically.
+     * @returns {string} GLSL source.
+     */
     generateFragShader() {
         const termCount = this.terms.length;
         let poly = "";
@@ -90,13 +119,22 @@ export class Renderer {
                 float scale = u_scale;
                 float pixelX = gl_FragCoord.x;
                 float pixelY = h - gl_FragCoord.y;
+                
+                // Normalize to solver space
                 float x = (pixelX - cx) / scale;
                 float y = (pixelY - cy) / scale;
+                
+                // Evaluate polynomial
                 float val = ${poly};
+                
+                // Determine color
                 vec4 color = (val > 0.0) ? u_colPos : u_colNeg;
+                
+                // Draw AA boundary line using gradient estimation
                 float d = abs(val) / (fwidth(val) + 0.00001);
                 float lineThickness = 1.5; 
                 float alpha = 1.0 - smoothstep(lineThickness - 1.0, lineThickness, d);
+                
                 gl_FragColor = mix(color, u_colLine, alpha);
             }
         `;
@@ -138,17 +176,14 @@ export class Renderer {
         this.buffer = this.initBuffers();
     }
 
-    initShaderProgram(vs, fs) {
-        // Deprecated, logic moved to init() to track shaders
-        return null; 
-    }
-
     loadShader(type, source) {
         const gl = this.gl;
         const shader = gl.createShader(type);
         gl.shaderSource(shader, source);
         gl.compileShader(shader);
+        
         if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+            console.error('Shader Compile Error: ' + gl.getShaderInfoLog(shader));
             gl.deleteShader(shader);
             return null;
         }
@@ -159,28 +194,34 @@ export class Renderer {
         const gl = this.gl;
         const positionBuffer = gl.createBuffer();
         gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+        // Full screen quad
         const positions = [-1.0, 1.0, 1.0, 1.0, -1.0, -1.0, 1.0, -1.0];
         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW);
         return { position: positionBuffer };
     }
 
-    clear() {
-        this.gl.clear(this.gl.COLOR_BUFFER_BIT);
-    }
-
+    /**
+     * Draws the full-screen quad with the computed curve.
+     * @param {Float32Array} coeffs - The polynomial coefficients.
+     */
     draw(coeffs) {
         if (!coeffs) return;
         const gl = this.gl;
+
         gl.useProgram(this.programInfo.program);
+
         gl.bindBuffer(gl.ARRAY_BUFFER, this.buffer.position);
         gl.vertexAttribPointer(this.programInfo.attribLocations.vertexPosition, 2, gl.FLOAT, false, 0, 0);
         gl.enableVertexAttribArray(this.programInfo.attribLocations.vertexPosition);
+
         gl.uniform2f(this.programInfo.uniformLocations.resolution, this.width, this.height);
         gl.uniform1f(this.programInfo.uniformLocations.scale, this.scale);
         gl.uniform1fv(this.programInfo.uniformLocations.coeffs, coeffs);
+        
         gl.uniform4fv(this.programInfo.uniformLocations.colPos, COLOR_POS);
         gl.uniform4fv(this.programInfo.uniformLocations.colNeg, COLOR_NEG);
         gl.uniform4fv(this.programInfo.uniformLocations.colLine, COLOR_LINE);
+
         gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     }
 }

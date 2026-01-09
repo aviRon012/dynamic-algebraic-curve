@@ -3,7 +3,16 @@ import { Solver } from './Solver.js';
 import { Renderer } from './Renderer.js';
 import { params, K_DIST, K_SPEED, K_FORCE, VIEW_SCALE_FACTOR } from './Params.js';
 
+/**
+ * Orchestrates the entire simulation loop.
+ * Manages the physics engine, mathematical solver, and WebGL renderer.
+ * Decoupled from the DOM/UI.
+ */
 export class Simulation {
+    /**
+     * @param {HTMLCanvasElement} glCanvas - Canvas for WebGL rendering.
+     * @param {HTMLCanvasElement} uiCanvas - Canvas for 2D particle rendering.
+     */
     constructor(glCanvas, uiCanvas) {
         this.glCanvas = glCanvas;
         this.uiCanvas = uiCanvas;
@@ -18,7 +27,7 @@ export class Simulation {
         this.currentDegree = 2;
         this.pointCount = 0;
         
-        // Callbacks
+        // Event Hooks
         this.onDegreeChange = null;
         this.onPauseChange = null;
         this.onCurveVisibilityChange = null;
@@ -28,11 +37,15 @@ export class Simulation {
 
     init() {
         this.resize();
-        this.setDegree(this.currentDegree); // Initializes solver/renderer/particles
+        this.setDegree(this.currentDegree); 
         window.addEventListener('resize', () => this.resize());
         this.animate();
     }
 
+    /**
+     * Handles window resize events.
+     * Updates canvas dimensions and recalculates physics/rendering scales.
+     */
     resize() {
         this.width = window.innerWidth;
         this.height = window.innerHeight;
@@ -50,8 +63,11 @@ export class Simulation {
         if (this.renderer) this.renderer.resize(this.width, this.height, params.scale);
     }
 
+    /**
+     * Dynamically scales physics parameters based on screen size and particle density.
+     * Ensures consistent behavior across different resolutions.
+     */
     updatePhysicsParams() {
-        // Safe check if pointCount is not set yet
         if (!this.pointCount) return;
         
         const areaPerPoint = (this.width * this.height) / this.pointCount;
@@ -63,6 +79,11 @@ export class Simulation {
         params.scale = Math.min(this.width, this.height) / VIEW_SCALE_FACTOR;
     }
 
+    /**
+     * Changes the degree of the algebraic curve.
+     * Re-initializes particles, solver, and renderer.
+     * @param {number} newDegree 
+     */
     setDegree(newDegree) {
         if (newDegree < 1 || newDegree > 6) return;
         this.currentDegree = newDegree;
@@ -70,6 +91,7 @@ export class Simulation {
         const termCount = ((this.currentDegree + 1) * (this.currentDegree + 2)) / 2;
         this.pointCount = termCount - 1;
         
+        // Clean up old WebGL resources
         if (this.renderer) {
             this.renderer.dispose();
         }
@@ -78,12 +100,15 @@ export class Simulation {
         this.renderer = new Renderer(this.gl, this.currentDegree);
         
         this.updatePhysicsParams();
-        this.resize(); // Ensure solver/renderer get new sizes
+        this.resize(); 
         this.spawnParticles();
         
         if (this.onDegreeChange) this.onDegreeChange(this.currentDegree);
     }
 
+    /**
+     * Respawns all particles at random locations within the valid area.
+     */
     spawnParticles() {
         this.particles = [];
         const margin = params.minDistance;
@@ -104,6 +129,12 @@ export class Simulation {
         if (this.onCurveVisibilityChange) this.onCurveVisibilityChange(params.showCurve);
     }
 
+    /**
+     * The main animation loop.
+     * 1. Updates Physics (if not paused).
+     * 2. Clears & Draws Particles (2D Canvas).
+     * 3. Solves & Draws Curve (WebGL).
+     */
     animate() {
         if (!params.isPaused) {
             for (let p of this.particles) {

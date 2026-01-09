@@ -1,12 +1,21 @@
+/**
+ * Solves for the coefficients of an implicit algebraic curve passing through a set of points.
+ * Uses Gaussian Elimination with Partial Pivoting.
+ */
 export class Solver {
+    /**
+     * @param {number} degree - The degree of the curve (e.g., 2 for Conic, 3 for Cubic).
+     */
     constructor(degree) {
         this.degree = degree;
         this.terms = this.generateTerms(degree);
         this.termCount = this.terms.length;
-        this.pointCount = this.termCount - 1;
+        this.pointCount = this.termCount - 1; // Need T-1 points to solve (1 degree of freedom for scale)
 
         this.prevCoeffs = null;
         
+        // Matrix: pointCount rows, termCount cols
+        // We reuse these arrays to avoid garbage collection
         this.matrix = [];
         for (let i = 0; i < this.pointCount; i++) {
             this.matrix.push(new Float64Array(this.termCount));
@@ -20,6 +29,12 @@ export class Solver {
         this.scale = 1;
     }
 
+    /**
+     * Updates the internal dimensions used for normalizing point coordinates.
+     * @param {number} width 
+     * @param {number} height 
+     * @param {number} scale 
+     */
     resize(width, height, scale) {
         this.width = width;
         this.height = height;
@@ -28,6 +43,11 @@ export class Solver {
         this.scale = scale;
     }
 
+    /**
+     * Generates the list of polynomial terms (powers of x and y).
+     * @param {number} degree 
+     * @returns {Object[]} Array of {x: power, y: power} objects.
+     */
     generateTerms(degree) {
         let terms = [];
         for (let d = degree; d >= 0; d--) {
@@ -39,9 +59,15 @@ export class Solver {
         return terms;
     }
 
+    /**
+     * Solves the system of linear equations to find the curve coefficients.
+     * @param {Particle[]} particles 
+     * @returns {Float32Array|null} The normalized coefficients, or previous frame's if singular.
+     */
     solve(particles) {
         if (particles.length !== this.pointCount) return null;
 
+        // 1. Fill Matrix
         for (let i = 0; i < this.pointCount; i++) {
             let p = particles[i];
             let nx = (p.pos.x - this.cx) / this.scale;
@@ -51,12 +77,14 @@ export class Solver {
             for (let j = 0; j < this.termCount; j++) {
                 let t = this.terms[j];
                 let val = 1;
+                // Optimized exponentiation
                 for(let k=0; k<t.x; k++) val *= nx;
                 for(let k=0; k<t.y; k++) val *= ny;
                 row[j] = val;
             }
         }
 
+        // 2. Gaussian Elimination with Partial Pivoting
         const nRows = this.pointCount;
         const nCols = this.termCount;
         let lead = 0;
@@ -64,7 +92,7 @@ export class Solver {
         for (let r = 0; r < nRows; r++) {
             if (nCols <= lead) break;
             
-            // Partial Pivoting
+            // Partial Pivoting: Find max value in column to minimize error
             let maxRow = r;
             let maxVal = Math.abs(this.matrix[r][lead]);
             
@@ -76,13 +104,13 @@ export class Solver {
                 }
             }
 
-            // If the pivot column is zero (singular), move to next column
+            // Singularity Check (Relative Epsilon)
             const EPSILON = 1e-10;
-            const pivotScale = Math.max(1.0, maxVal); // Avoid division by zero issues if maxVal is tiny
+            const pivotScale = Math.max(1.0, maxVal);
             
             if (maxVal < EPSILON * pivotScale) {
                 lead++;
-                r--; // Stay on this row, check next column
+                r--; // Retry this row with next column
                 continue;
             }
 
@@ -91,9 +119,11 @@ export class Solver {
             this.matrix[r] = this.matrix[maxRow];
             this.matrix[maxRow] = temp;
             
+            // Normalize Pivot Row
             let val = this.matrix[r][lead];
             for (let j = 0; j < nCols; j++) this.matrix[r][j] /= val;
             
+            // Eliminate other rows
             for (let k = 0; k < nRows; k++) {
                 if (k === r) continue;
                 val = this.matrix[k][lead];
@@ -102,16 +132,20 @@ export class Solver {
             lead++;
         }
 
+        // 3. Extract Coefficients
+        // The last column (constant/lowest term) corresponds to the '1' in the solution vector space
         this.coeffsBuffer[nCols - 1] = 1; 
         for (let i = nRows - 1; i >= 0; i--) {
             this.coeffsBuffer[i] = -this.matrix[i][nCols - 1]; 
         }
 
+        // 4. Normalize Vector (for consistent gradient rendering)
         let mag = 0;
         for(let c of this.coeffsBuffer) mag += c*c;
         mag = Math.sqrt(mag);
         for(let i=0; i < nCols; i++) this.coeffsBuffer[i] /= mag;
 
+        // 5. Consistency Check (prevent sign flipping between frames)
         if (this.prevCoeffs) {
             let dot = 0;
             for(let i=0; i < nCols; i++) dot += this.coeffsBuffer[i] * this.prevCoeffs[i];
@@ -120,6 +154,7 @@ export class Solver {
             }
         }
 
+        // Save for next frame
         if (!this.prevCoeffs) {
             this.prevCoeffs = new Float32Array(nCols);
         }
