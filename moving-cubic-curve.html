@@ -31,11 +31,11 @@
 
     <script>
         // --- CONFIG ---
-        const CURVE_DEGREE = 3; // Change this to 2, 3, 4, etc.
+        let currentDegree = 3; 
         
         // Calculate required points: (D+1)(D+2)/2 - 1
-        const TERM_COUNT = ((CURVE_DEGREE + 1) * (CURVE_DEGREE + 2)) / 2;
-        const POINT_COUNT = TERM_COUNT - 1;
+        let termCount = ((currentDegree + 1) * (currentDegree + 2)) / 2;
+        let pointCount = termCount - 1;
         
         const POINT_RADIUS = 6;
         
@@ -56,6 +56,7 @@
         let minDistance = 100;
         let maxSpeed = 2.5;
         let maxForce = 0.15;
+        let isPaused = false;
 
         // --- VECTOR ---
         class Vector {
@@ -510,19 +511,52 @@
         let solver;
         let renderer;
 
+        function spawnParticles() {
+            particles = [];
+            const margin = minDistance; 
+            for (let i = 0; i < pointCount; i++) {
+                let x = Math.random() * (width - margin * 2) + margin;
+                let y = Math.random() * (height - margin * 2) + margin;
+                particles.push(new Particle(x, y));
+            }
+        }
+
+        function setDegree(newDegree) {
+            if (newDegree < 1 || newDegree > 6) return;
+            currentDegree = newDegree;
+            termCount = ((currentDegree + 1) * (currentDegree + 2)) / 2;
+            pointCount = termCount - 1;
+
+            solver = new Solver(currentDegree);
+            renderer = new Renderer(gl, currentDegree);
+            
+            // Recalculate physics and spawn
+            resize(); 
+            spawnParticles();
+        }
+
         function init() {
-            solver = new Solver(CURVE_DEGREE);
-            renderer = new Renderer(gl, CURVE_DEGREE);
+            solver = new Solver(currentDegree);
+            renderer = new Renderer(gl, currentDegree);
             
             resize();
             window.addEventListener('resize', resize);
+            window.addEventListener('keydown', (e) => {
+                if (e.key === ' ') {
+                    isPaused = !isPaused;
+                }
+                if (e.key === 'r' || e.key === 'R') {
+                    spawnParticles();
+                }
+                if (e.key === 'ArrowUp') {
+                    setDegree(currentDegree + 1);
+                }
+                if (e.key === 'ArrowDown') {
+                    setDegree(currentDegree - 1);
+                }
+            });
             
-            particles = [];
-            for (let i = 0; i < POINT_COUNT; i++) {
-                let x = Math.random() * (width - 200) + 100;
-                let y = Math.random() * (height - 200) + 100;
-                particles.push(new Particle(x, y));
-            }
+            spawnParticles();
             
             requestAnimationFrame(animate);
         }
@@ -537,7 +571,7 @@
             uiCanvas.height = height;
 
             // Update Physics Globals
-            const areaPerPoint = (width * height) / POINT_COUNT;
+            const areaPerPoint = (width * height) / pointCount;
             const baseScale = Math.sqrt(areaPerPoint);
             
             minDistance = baseScale * K_DIST;
@@ -550,8 +584,10 @@
         }
 
         function animate() {
-            for (let p of particles) {
-                p.update(particles, width, height);
+            if (!isPaused) {
+                for (let p of particles) {
+                    p.update(particles, width, height);
+                }
             }
 
             ctx.clearRect(0, 0, width, height);
