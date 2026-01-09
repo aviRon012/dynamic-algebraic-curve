@@ -1,7 +1,5 @@
 # Dynamic Algebraic Curve Explorer
 
-## Project Overview
-
 This project is an interactive WebGL visualization that explores **Implicit Algebraic Curves** (defined by $f(x,y) = 0$).
 
 Unlike traditional graph plotters that draw specific functions, this application uses a "swarm" of autonomous particles. These particles move naturally around the canvas, and in every frame, a specialized **Solver** calculates the unique algebraic curve that passes through all of their positions. A **Renderer** then draws this curve in real-time using a GPU fragment shader.
@@ -65,6 +63,8 @@ The application features an auto-hiding UI overlay that appears on mouse movemen
 | **Arrow Down** | Decrease Degree | Lowers the curve degree (min 1), removing particles. |
 | **Space** | Pause / Resume | Freezes the physics simulation to inspect a specific shape. |
 | **R** | Restart | Respawns all particles at random locations. |
+| **C** | Toggle Curve | Hides/Shows the rendered curve to view raw particles. |
+| **Mouse Drag** | Move Particle | **(When Paused)** Click and drag any particle to manually reshape the curve. |
 
 ## Development Notes
 

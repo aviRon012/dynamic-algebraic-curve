@@ -97,6 +97,40 @@ function init() {
     document.getElementById('btn-pause').addEventListener('click', togglePause);
     document.getElementById('btn-curve').addEventListener('click', toggleCurve);
 
+    // Drag Interaction
+    let draggedParticle = null;
+
+    window.addEventListener('mousedown', (e) => {
+        if (!params.isPaused) return;
+        const mouseX = e.clientX;
+        const mouseY = e.clientY;
+        // Hit test radius: 20px
+        for (let p of particles) {
+            const dx = p.pos.x - mouseX;
+            const dy = p.pos.y - mouseY;
+            if (dx*dx + dy*dy < 400) { 
+                draggedParticle = p;
+                break;
+            }
+        }
+    });
+
+    window.addEventListener('mousemove', (e) => {
+        if (draggedParticle) {
+            if (!params.isPaused) {
+                draggedParticle = null;
+                return;
+            }
+            draggedParticle.pos.x = e.clientX;
+            draggedParticle.pos.y = e.clientY;
+            draggedParticle.vel.set(0, 0); // Stop momentum
+        }
+    });
+
+    window.addEventListener('mouseup', () => {
+        draggedParticle = null;
+    });
+
     let idleTimer;
     const uiContainer = document.getElementById('ui-container');
     function resetIdle() {
