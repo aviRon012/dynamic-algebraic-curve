@@ -23,9 +23,76 @@
         #uiCanvas {
             z-index: 1;
         }
+        #ui-container {
+            position: absolute;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+            color: white;
+            font-family: 'Segoe UI', sans-serif;
+            background: rgba(15, 23, 42, 0.8);
+            padding: 12px 24px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(8px);
+            transition: opacity 0.5s ease;
+            user-select: none;
+            display: flex;
+            align-items: center;
+            gap: 24px;
+        }
+        #ui-container.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+        .row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin: 0;
+        }
+        button {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #5eead4;
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+        button:hover {
+            background: rgba(45, 212, 191, 0.2);
+            border-color: #5eead4;
+        }
+        .degree-ctrl {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        #degree-val {
+            font-weight: bold;
+            min-width: 20px;
+            text-align: center;
+        }
     </style>
 </head>
 <body>
+    <div id="ui-container">
+        <div class="row">
+            <span>Degree:</span>
+            <div class="degree-ctrl">
+                <button id="btn-deg-down" title="Arrow Down">-</button>
+                <span id="degree-val">3</span>
+                <button id="btn-deg-up" title="Arrow Up">+</button>
+            </div>
+        </div>
+        <div class="row">
+            <button id="btn-pause" style="flex: 1" title="Space">Pause</button>
+            <button id="btn-restart" style="flex: 1" title="R">Restart</button>
+        </div>
+    </div>
     <canvas id="glCanvas"></canvas>
     <canvas id="uiCanvas"></canvas>
 
@@ -526,6 +593,9 @@
             currentDegree = newDegree;
             termCount = ((currentDegree + 1) * (currentDegree + 2)) / 2;
             pointCount = termCount - 1;
+            
+            // Update UI
+            document.getElementById('degree-val').textContent = currentDegree;
 
             solver = new Solver(currentDegree);
             renderer = new Renderer(gl, currentDegree);
@@ -535,15 +605,43 @@
             spawnParticles();
         }
 
+        function togglePause() {
+            isPaused = !isPaused;
+            document.getElementById('btn-pause').textContent = isPaused ? 'Resume' : 'Pause';
+        }
+
         function init() {
             solver = new Solver(currentDegree);
             renderer = new Renderer(gl, currentDegree);
             
+            // UI Button Listeners
+            document.getElementById('btn-deg-up').addEventListener('click', () => setDegree(currentDegree + 1));
+            document.getElementById('btn-deg-down').addEventListener('click', () => setDegree(currentDegree - 1));
+            document.getElementById('btn-restart').addEventListener('click', () => spawnParticles());
+            document.getElementById('btn-pause').addEventListener('click', togglePause);
+
+            // Idle Fade Logic
+            let idleTimer;
+            const uiContainer = document.getElementById('ui-container');
+            function resetIdle() {
+                uiContainer.classList.remove('hidden');
+                document.body.style.cursor = 'default';
+                clearTimeout(idleTimer);
+                idleTimer = setTimeout(() => {
+                    uiContainer.classList.add('hidden');
+                    document.body.style.cursor = 'none';
+                }, 3000);
+            }
+            window.addEventListener('mousemove', resetIdle);
+            window.addEventListener('mousedown', resetIdle);
+            window.addEventListener('keydown', resetIdle);
+            resetIdle();
+
             resize();
             window.addEventListener('resize', resize);
             window.addEventListener('keydown', (e) => {
                 if (e.key === ' ') {
-                    isPaused = !isPaused;
+                    togglePause();
                 }
                 if (e.key === 'r' || e.key === 'R') {
                     spawnParticles();
