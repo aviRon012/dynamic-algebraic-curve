@@ -42,6 +42,11 @@ function togglePause() {
     document.getElementById('btn-pause').textContent = params.isPaused ? 'Resume' : 'Pause';
 }
 
+function toggleCurve() {
+    params.showCurve = !params.showCurve;
+    document.getElementById('btn-curve').textContent = params.showCurve ? 'Hide Curve' : 'Show Curve';
+}
+
 function resize() {
     width = window.innerWidth;
     height = window.innerHeight;
@@ -69,8 +74,14 @@ function animate() {
     }
     ctx.clearRect(0, 0, width, height);
     for (let p of particles) p.draw(ctx);
-    const coeffs = solver.solve(particles);
-    if (coeffs) renderer.draw(coeffs);
+    
+    if (params.showCurve) {
+        const coeffs = solver.solve(particles);
+        if (coeffs) renderer.draw(coeffs);
+    } else {
+        renderer.clear();
+    }
+    
     requestAnimationFrame(animate);
 }
 
@@ -84,6 +95,7 @@ function init() {
     document.getElementById('btn-deg-down').addEventListener('click', () => setDegree(currentDegree - 1));
     document.getElementById('btn-restart').addEventListener('click', () => spawnParticles());
     document.getElementById('btn-pause').addEventListener('click', togglePause);
+    document.getElementById('btn-curve').addEventListener('click', toggleCurve);
 
     let idleTimer;
     const uiContainer = document.getElementById('ui-container');
@@ -106,6 +118,7 @@ function init() {
     window.addEventListener('keydown', (e) => {
         if (e.key === ' ') togglePause();
         if (e.key === 'r' || e.key === 'R') spawnParticles();
+        if (e.key === 'c' || e.key === 'C') toggleCurve();
         if (e.key === 'ArrowUp') setDegree(currentDegree + 1);
         if (e.key === 'ArrowDown') setDegree(currentDegree - 1);
     });

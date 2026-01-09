@@ -135,6 +135,10 @@ export class Renderer {
         return { position: positionBuffer };
     }
 
+    clear() {
+        this.gl.clear(this.gl.COLOR_BUFFER_BIT);
+    }
+
     draw(coeffs) {
         if (!coeffs) return;
         const gl = this.gl;

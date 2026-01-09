@@ -16,5 +16,6 @@ export const params = {
     maxSpeed: 2.5,
     maxForce: 0.15,
     scale: 1,
-    isPaused: false
+    isPaused: false,
+    showCurve: true
 };
