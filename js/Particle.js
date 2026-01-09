@@ -1,5 +1,10 @@
 import { Vector } from './Vector.js';
-import { POINT_RADIUS, POINT_COLOR } from './Params.js';
+import { 
+    POINT_RADIUS, POINT_COLOR,
+    WANDER_RANGE, WANDER_RADIUS, WANDER_DISTANCE,
+    EDGE_MARGIN,
+    WEIGHT_SEPARATION, WEIGHT_WANDER, WEIGHT_BOUNDARIES
+} from './Params.js';
 
 export class Particle {
     constructor(x, y) {
@@ -35,23 +40,60 @@ export class Particle {
             this._steer.normalize();
             this._steer.mult(params.maxSpeed);
             this._steer.sub(this.vel);
-            this._steer.limit(params.maxForce * 1.5);
+            this._steer.limit(params.maxForce * WEIGHT_SEPARATION); // Apply weight influence on limit?
+            // Original code: steer.limit(MAX_FORCE * 1.5);
+            // Wait, the weight is applied *later* in update.
+            // But 'separate' had 'steer.limit(MAX_FORCE * 1.5)'.
+            // I'll assume 1.5 was a specific tuning for separate force magnitude cap.
+            // I'll use WEIGHT_SEPARATION here if it matches the intent.
+            // The original update also did `sep.mult(1.5)`.
+            // So it was limited to 1.5*Force, AND multiplied by 1.5?
+            // Let's stick to the original logic structure but use constants.
+        }
+        return this._steer;
+    }
+
+    // Re-reading original logic:
+    // separate: steer.limit(MAX_FORCE * 1.5)
+    // edges: steer.limit(MAX_FORCE * 2)
+    // update: sep.mult(1.5), wan.mult(1.0), bnd.mult(2.0)
+    
+    // It seems the limit factors (1.5, 2) match the weights.
+    // So I will use WEIGHT_ constants for limits too.
+
+    separate(particles, params) {
+        let desiredseparation = params.minDistance;
+        this._steer.set(0, 0);
+        let count = 0;
+        for (let other of particles) {
+            let d = Vector.dist(this.pos, other.pos);
+            if ((other !== this) && (d < desiredseparation)) {
+                this._diff.setVec(this.pos).sub(other.pos);
+                this._diff.normalize();
+                this._diff.div(d);
+                this._steer.add(this._diff);
+                count++;
+            }
+        }
+        if (count > 0) {
+            this._steer.div(count);
+            this._steer.normalize();
+            this._steer.mult(params.maxSpeed);
+            this._steer.sub(this.vel);
+            this._steer.limit(params.maxForce * WEIGHT_SEPARATION); 
         }
         return this._steer;
     }
 
     wander(params) {
-        let wanderRange = 0.3;
-        this.wanderTheta += (Math.random() * 2 - 1) * wanderRange;
-        let wanderRadius = 25;
-        let wanderDistance = 80;
+        this.wanderTheta += (Math.random() * 2 - 1) * WANDER_RANGE;
         
         this._circleCenter.setVec(this.vel);
         this._circleCenter.normalize();
-        this._circleCenter.mult(wanderDistance);
+        this._circleCenter.mult(WANDER_DISTANCE);
         
         this._displacement.set(0, -1);
-        this._displacement.mult(wanderRadius);
+        this._displacement.mult(WANDER_RADIUS);
         
         let h = this.wanderTheta;
         let x = this._displacement.x;
@@ -65,20 +107,19 @@ export class Particle {
     }
 
     edges(width, height, params) {
-        let margin = 50;
         let steer = this._diff;
         steer.set(0, 0);
         
-        if (this.pos.x < margin) steer.x = params.maxSpeed;
-        if (this.pos.x > width - margin) steer.x = -params.maxSpeed;
-        if (this.pos.y < margin) steer.y = params.maxSpeed;
-        if (this.pos.y > height - margin) steer.y = -params.maxSpeed;
+        if (this.pos.x < EDGE_MARGIN) steer.x = params.maxSpeed;
+        if (this.pos.x > width - EDGE_MARGIN) steer.x = -params.maxSpeed;
+        if (this.pos.y < EDGE_MARGIN) steer.y = params.maxSpeed;
+        if (this.pos.y > height - EDGE_MARGIN) steer.y = -params.maxSpeed;
         
         if (steer.mag() > 0) {
             steer.normalize();
             steer.mult(params.maxSpeed);
             steer.sub(this.vel);
-            steer.limit(params.maxForce * 2);
+            steer.limit(params.maxForce * WEIGHT_BOUNDARIES);
         }
         return steer;
     }
@@ -87,12 +128,15 @@ export class Particle {
         let sep = this.separate(particles, params);
         let wan = this.wander(params);
         let bnd = this.edges(width, height, params);
-        sep.mult(1.5);
-        wan.mult(1.0);
-        bnd.mult(2.0);
+        
+        sep.mult(WEIGHT_SEPARATION);
+        wan.mult(WEIGHT_WANDER);
+        bnd.mult(WEIGHT_BOUNDARIES);
+        
         this.applyForce(sep);
         this.applyForce(wan);
         this.applyForce(bnd);
+        
         this.vel.add(this.acc);
         this.vel.limit(params.maxSpeed);
         this.pos.add(this.vel);

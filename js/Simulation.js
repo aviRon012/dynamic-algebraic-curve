@@ -1,7 +1,7 @@
 import { Particle } from './Particle.js';
 import { Solver } from './Solver.js';
 import { Renderer } from './Renderer.js';
-import { params, K_DIST, K_SPEED, K_FORCE } from './Params.js';
+import { params, K_DIST, K_SPEED, K_FORCE, VIEW_SCALE_FACTOR } from './Params.js';
 
 export class Simulation {
     constructor(glCanvas, uiCanvas) {
@@ -60,7 +60,7 @@ export class Simulation {
         params.minDistance = baseScale * K_DIST;
         params.maxSpeed = baseScale * K_SPEED;
         params.maxForce = params.maxSpeed * K_FORCE;
-        params.scale = Math.min(this.width, this.height) / 2.5;
+        params.scale = Math.min(this.width, this.height) / VIEW_SCALE_FACTOR;
     }
 
     setDegree(newDegree) {
@@ -70,6 +70,10 @@ export class Simulation {
         const termCount = ((this.currentDegree + 1) * (this.currentDegree + 2)) / 2;
         this.pointCount = termCount - 1;
         
+        if (this.renderer) {
+            this.renderer.dispose();
+        }
+
         this.solver = new Solver(this.currentDegree);
         this.renderer = new Renderer(this.gl, this.currentDegree);
         

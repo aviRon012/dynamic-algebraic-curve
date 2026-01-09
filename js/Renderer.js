@@ -12,14 +12,34 @@ export class Renderer {
         this.gl = gl;
         this.degree = degree;
         this.terms = this.generateTerms(degree);
+        
         this.programInfo = null;
         this.buffer = null;
+        this.program = null;
+        this.vertexShader = null;
+        this.fragmentShader = null;
         
         this.width = 1;
         this.height = 1;
         this.scale = 1;
 
         this.init();
+    }
+
+    dispose() {
+        const gl = this.gl;
+        if (this.buffer) {
+            gl.deleteBuffer(this.buffer.position);
+        }
+        if (this.program) {
+            gl.deleteProgram(this.program);
+        }
+        if (this.vertexShader) {
+            gl.deleteShader(this.vertexShader);
+        }
+        if (this.fragmentShader) {
+            gl.deleteShader(this.fragmentShader);
+        }
     }
 
     resize(width, height, scale) {
@@ -85,33 +105,42 @@ export class Renderer {
     init() {
         const gl = this.gl;
         gl.getExtension('OES_standard_derivatives');
+        
         const fsSource = this.generateFragShader();
-        const shaderProgram = this.initShaderProgram(vsSource, fsSource);
+        
+        this.vertexShader = this.loadShader(gl.VERTEX_SHADER, vsSource);
+        this.fragmentShader = this.loadShader(gl.FRAGMENT_SHADER, fsSource);
+        
+        if (!this.vertexShader || !this.fragmentShader) return;
+
+        this.program = gl.createProgram();
+        gl.attachShader(this.program, this.vertexShader);
+        gl.attachShader(this.program, this.fragmentShader);
+        gl.linkProgram(this.program);
+        
+        if (!gl.getProgramParameter(this.program, gl.LINK_STATUS)) {
+            console.error('Shader Link Error: ' + gl.getProgramInfoLog(this.program));
+            return;
+        }
+
         this.programInfo = {
-            program: shaderProgram,
-            attribLocations: { vertexPosition: gl.getAttribLocation(shaderProgram, 'aVertexPosition') },
+            program: this.program,
+            attribLocations: { vertexPosition: gl.getAttribLocation(this.program, 'aVertexPosition') },
             uniformLocations: {
-                resolution: gl.getUniformLocation(shaderProgram, 'u_resolution'),
-                scale: gl.getUniformLocation(shaderProgram, 'u_scale'),
-                coeffs: gl.getUniformLocation(shaderProgram, 'u_coeffs'),
-                colPos: gl.getUniformLocation(shaderProgram, 'u_colPos'),
-                colNeg: gl.getUniformLocation(shaderProgram, 'u_colNeg'),
-                colLine: gl.getUniformLocation(shaderProgram, 'u_colLine'),
+                resolution: gl.getUniformLocation(this.program, 'u_resolution'),
+                scale: gl.getUniformLocation(this.program, 'u_scale'),
+                coeffs: gl.getUniformLocation(this.program, 'u_coeffs'),
+                colPos: gl.getUniformLocation(this.program, 'u_colPos'),
+                colNeg: gl.getUniformLocation(this.program, 'u_colNeg'),
+                colLine: gl.getUniformLocation(this.program, 'u_colLine'),
             },
         };
         this.buffer = this.initBuffers();
     }
 
     initShaderProgram(vs, fs) {
-        const gl = this.gl;
-        const vertexShader = this.loadShader(gl.VERTEX_SHADER, vs);
-        const fragmentShader = this.loadShader(gl.FRAGMENT_SHADER, fs);
-        const shaderProgram = gl.createProgram();
-        gl.attachShader(shaderProgram, vertexShader);
-        gl.attachShader(shaderProgram, fragmentShader);
-        gl.linkProgram(shaderProgram);
-        if (!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS)) return null;
-        return shaderProgram;
+        // Deprecated, logic moved to init() to track shaders
+        return null; 
     }
 
     loadShader(type, source) {
