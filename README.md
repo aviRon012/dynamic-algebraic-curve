@@ -1,5 +1,7 @@
 # Dynamic Algebraic Curve Explorer
 
+**[Live Demo](https://aviron012.github.io/dynamic-algebraic-curve/dynamic-algebraic-curve.html)**
+
 This project is an interactive WebGL visualization that explores **Implicit Algebraic Curves** (defined by $f(x,y) = 0$).
 
 Unlike traditional graph plotters that draw specific functions, this application uses a "swarm" of autonomous particles. These particles move naturally around the canvas, and in every frame, a specialized **Solver** calculates the unique algebraic curve that passes through all of their positions. A **Renderer** then draws this curve in real-time using a GPU fragment shader.
