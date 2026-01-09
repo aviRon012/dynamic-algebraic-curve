@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cubic Curve Regions</title>
+    <title>Implicit Curve Regions</title>
     <style>
         body {
             margin: 0;
@@ -31,17 +31,31 @@
 
     <script>
         // --- CONFIG ---
-        const POINT_COUNT = 9;
+        const CURVE_DEGREE = 3; // Change this to 2, 3, 4, etc.
+        
+        // Calculate required points: (D+1)(D+2)/2 - 1
+        const TERM_COUNT = ((CURVE_DEGREE + 1) * (CURVE_DEGREE + 2)) / 2;
+        const POINT_COUNT = TERM_COUNT - 1;
+        
         const POINT_RADIUS = 6;
-        const MIN_DISTANCE = 100;
-        const MAX_SPEED = 2.5; 
-        const MAX_FORCE = 0.15;   
+        
+        // Dynamic Physics Factors (K constants)
+        // Calculated based on sqrt(Area / N)
+        const K_DIST = 0.22;   // Distance factor
+        const K_SPEED = 0.0055; // Speed factor
+        const K_FORCE = 0.06;   // Force factor relative to speed (Steering ability)
+
         const WANDER_STRENGTH = 0.1;
 
         const COLOR_POS = [30/255, 41/255, 59/255, 1.0]; 
         const COLOR_NEG = [15/255, 23/255, 42/255, 1.0];
         const COLOR_LINE = [45/255, 212/255, 191/255, 1.0];
         const POINT_COLOR = '#5eead4';
+
+        // --- GLOBALS (Physics) ---
+        let minDistance = 100;
+        let maxSpeed = 2.5;
+        let maxForce = 0.15;
 
         // --- VECTOR ---
         class Vector {
@@ -68,7 +82,6 @@
                 this.acc = new Vector(0, 0);
                 this.wanderTheta = Math.random() * Math.PI * 2;
                 
-                // Reusable vectors to reduce GC
                 this._steer = new Vector(0, 0);
                 this._diff = new Vector(0, 0);
                 this._circleCenter = new Vector(0, 0);
@@ -78,7 +91,7 @@
             applyForce(force) { this.acc.add(force); }
 
             separate(particles) {
-                let desiredseparation = MIN_DISTANCE;
+                let desiredseparation = minDistance;
                 this._steer.set(0, 0);
                 let count = 0;
                 for (let other of particles) {
@@ -94,9 +107,9 @@
                 if (count > 0) {
                     this._steer.div(count);
                     this._steer.normalize();
-                    this._steer.mult(MAX_SPEED);
+                    this._steer.mult(maxSpeed);
                     this._steer.sub(this.vel);
-                    this._steer.limit(MAX_FORCE * 1.5);
+                    this._steer.limit(maxForce * 1.5);
                 }
                 return this._steer;
             }
@@ -121,7 +134,7 @@
                 this._displacement.y = x * Math.sin(h) + y * Math.cos(h);
                 
                 let target = this._circleCenter.add(this._displacement);
-                target.limit(MAX_FORCE);
+                target.limit(maxForce);
                 return target;
             }
 
@@ -130,16 +143,16 @@
                 let steer = this._diff;
                 steer.set(0, 0);
                 
-                if (this.pos.x < margin) steer.x = MAX_SPEED;
-                if (this.pos.x > width - margin) steer.x = -MAX_SPEED;
-                if (this.pos.y < margin) steer.y = MAX_SPEED;
-                if (this.pos.y > height - margin) steer.y = -MAX_SPEED;
+                if (this.pos.x < margin) steer.x = maxSpeed;
+                if (this.pos.x > width - margin) steer.x = -maxSpeed;
+                if (this.pos.y < margin) steer.y = maxSpeed;
+                if (this.pos.y > height - margin) steer.y = -maxSpeed;
                 
                 if (steer.mag() > 0) {
                     steer.normalize();
-                    steer.mult(MAX_SPEED);
+                    steer.mult(maxSpeed);
                     steer.sub(this.vel);
-                    steer.limit(MAX_FORCE * 2);
+                    steer.limit(maxForce * 2);
                 }
                 return steer;
             }
@@ -155,7 +168,7 @@
                 this.applyForce(wan);
                 this.applyForce(bnd);
                 this.vel.add(this.acc);
-                this.vel.limit(MAX_SPEED);
+                this.vel.limit(maxSpeed);
                 this.pos.add(this.vel);
                 this.acc.mult(0);
             }
@@ -173,36 +186,71 @@
 
         // --- SOLVER ---
         class Solver {
-            constructor() {
+            constructor(degree) {
+                this.degree = degree;
+                this.terms = this.generateTerms(degree);
+                this.termCount = this.terms.length;
+                this.pointCount = this.termCount - 1;
+
                 this.prevCoeffs = null;
+                
+                // Matrix: pointCount rows, termCount cols
                 this.matrix = [];
-                for (let i = 0; i < 9; i++) {
-                    this.matrix.push(new Float64Array(10));
+                for (let i = 0; i < this.pointCount; i++) {
+                    this.matrix.push(new Float64Array(this.termCount));
                 }
-                this.coeffsBuffer = new Float64Array(10);
+                this.coeffsBuffer = new Float64Array(this.termCount);
+
+                // State
+                this.width = 1;
+                this.height = 1;
+                this.cx = 0.5;
+                this.cy = 0.5;
+                this.scale = 1;
             }
 
-            solve(particles, width, height) {
-                const cx = width / 2;
-                const cy = height / 2;
-                const scale = Math.min(width, height) / 2.5;
+            resize(width, height) {
+                this.width = width;
+                this.height = height;
+                this.cx = width / 2;
+                this.cy = height / 2;
+                this.scale = Math.min(width, height) / 2.5;
+            }
+
+            generateTerms(degree) {
+                let terms = [];
+                for (let d = degree; d >= 0; d--) {
+                    for (let x = d; x >= 0; x--) {
+                        let y = d - x;
+                        terms.push({x, y});
+                    }
+                }
+                return terms;
+            }
+
+            solve(particles) {
+                if (particles.length !== this.pointCount) return null;
 
                 // 1. Fill Matrix
-                for (let i = 0; i < 9; i++) {
+                for (let i = 0; i < this.pointCount; i++) {
                     let p = particles[i];
-                    let x = (p.pos.x - cx) / scale;
-                    let y = (p.pos.y - cy) / scale;
+                    let nx = (p.pos.x - this.cx) / this.scale;
+                    let ny = (p.pos.y - this.cy) / this.scale;
                     
                     let row = this.matrix[i];
-                    row[0] = x*x*x; row[1] = y*y*y; row[2] = x*x*y; row[3] = x*y*y;
-                    row[4] = x*x;   row[5] = y*y;   row[6] = x*y;
-                    row[7] = x;     row[8] = y;
-                    row[9] = 1;
+                    for (let j = 0; j < this.termCount; j++) {
+                        let t = this.terms[j];
+                        // Optimize pow: simple multiplications for small powers
+                        let val = 1;
+                        for(let k=0; k<t.x; k++) val *= nx;
+                        for(let k=0; k<t.y; k++) val *= ny;
+                        row[j] = val;
+                    }
                 }
 
                 // 2. Gaussian Elimination
-                const nRows = 9;
-                const nCols = 10;
+                const nRows = this.pointCount;
+                const nCols = this.termCount;
                 let lead = 0;
                 
                 for (let r = 0; r < nRows; r++) {
@@ -236,31 +284,31 @@
                 }
 
                 // 3. Extract Coefficients
-                this.coeffsBuffer[9] = 1; 
+                this.coeffsBuffer[nCols - 1] = 1; 
                 for (let i = nRows - 1; i >= 0; i--) {
-                    this.coeffsBuffer[i] = -this.matrix[i][9]; 
+                    this.coeffsBuffer[i] = -this.matrix[i][nCols - 1]; 
                 }
 
                 // 4. Normalize
                 let mag = 0;
                 for(let c of this.coeffsBuffer) mag += c*c;
                 mag = Math.sqrt(mag);
-                for(let i=0; i<10; i++) this.coeffsBuffer[i] /= mag;
+                for(let i=0; i < nCols; i++) this.coeffsBuffer[i] /= mag;
 
                 // 5. Consistency Check
                 if (this.prevCoeffs) {
                     let dot = 0;
-                    for(let i=0; i<10; i++) dot += this.coeffsBuffer[i] * this.prevCoeffs[i];
+                    for(let i=0; i < nCols; i++) dot += this.coeffsBuffer[i] * this.prevCoeffs[i];
                     if (dot < 0) {
-                        for(let i=0; i<10; i++) this.coeffsBuffer[i] *= -1;
+                        for(let i=0; i < nCols; i++) this.coeffsBuffer[i] *= -1;
                     }
                 }
 
                 // Save for next frame
                 if (!this.prevCoeffs) {
-                    this.prevCoeffs = new Float32Array(10);
+                    this.prevCoeffs = new Float32Array(nCols);
                 }
-                for(let i=0; i<10; i++) this.prevCoeffs[i] = this.coeffsBuffer[i];
+                for(let i=0; i < nCols; i++) this.prevCoeffs[i] = this.coeffsBuffer[i];
 
                 return this.prevCoeffs;
             }
@@ -274,66 +322,97 @@
             }
         `;
 
-        const fsSource = `
-            #extension GL_OES_standard_derivatives : enable
-            precision highp float;
-            
-            uniform vec2 u_resolution;
-            uniform float u_scale;
-            uniform float u_coeffs[10];
-            uniform vec4 u_colPos;
-            uniform vec4 u_colNeg;
-            uniform vec4 u_colLine;
-
-            void main() {
-                float w = u_resolution.x;
-                float h = u_resolution.y;
-                float cx = w * 0.5;
-                float cy = h * 0.5;
-                float scale = u_scale;
-
-                float pixelX = gl_FragCoord.x;
-                float pixelY = h - gl_FragCoord.y;
-
-                float x = (pixelX - cx) / scale;
-                float y = (pixelY - cy) / scale;
-
-                float x2 = x * x;
-                float y2 = y * y;
-
-                float val = u_coeffs[0]*x2*x + 
-                            u_coeffs[1]*y2*y + 
-                            u_coeffs[2]*x2*y + 
-                            u_coeffs[3]*x*y2 + 
-                            u_coeffs[4]*x2 + 
-                            u_coeffs[5]*y2 + 
-                            u_coeffs[6]*x*y + 
-                            u_coeffs[7]*x + 
-                            u_coeffs[8]*y + 
-                            u_coeffs[9];
-
-                vec4 color = (val > 0.0) ? u_colPos : u_colNeg;
-
-                float d = abs(val) / (fwidth(val) + 0.00001);
-                float lineThickness = 1.5; 
-                float alpha = 1.0 - smoothstep(lineThickness - 1.0, lineThickness, d);
-                
-                gl_FragColor = mix(color, u_colLine, alpha);
-            }
-        `;
-
         class Renderer {
-            constructor(gl) {
+            constructor(gl, degree) {
                 this.gl = gl;
+                this.degree = degree;
+                this.terms = this.generateTerms(degree);
                 this.programInfo = null;
                 this.buffer = null;
+                
+                this.width = 1;
+                this.height = 1;
+                this.scale = 1;
+
                 this.init();
+            }
+
+            resize(width, height) {
+                this.width = width;
+                this.height = height;
+                this.scale = Math.min(width, height) / 2.5;
+                this.gl.viewport(0, 0, width, height);
+            }
+
+            generateTerms(degree) {
+                let terms = [];
+                for (let d = degree; d >= 0; d--) {
+                    for (let x = d; x >= 0; x--) {
+                        let y = d - x;
+                        terms.push({x, y});
+                    }
+                }
+                return terms;
+            }
+
+            generateFragShader() {
+                const termCount = this.terms.length;
+                let poly = "";
+                
+                for (let i = 0; i < termCount; i++) {
+                    let t = this.terms[i];
+                    let termStr = `u_coeffs[${i}]`;
+                    
+                    // Generate multiplications x*x...
+                    for(let k=0; k<t.x; k++) termStr += "*x";
+                    for(let k=0; k<t.y; k++) termStr += "*y";
+                    
+                    if (i > 0) poly += " + ";
+                    poly += termStr;
+                }
+
+                return `
+                    #extension GL_OES_standard_derivatives : enable
+                    precision highp float;
+                    
+                    uniform vec2 u_resolution;
+                    uniform float u_scale;
+                    uniform float u_coeffs[${termCount}];
+                    uniform vec4 u_colPos;
+                    uniform vec4 u_colNeg;
+                    uniform vec4 u_colLine;
+
+                    void main() {
+                        float w = u_resolution.x;
+                        float h = u_resolution.y;
+                        float cx = w * 0.5;
+                        float cy = h * 0.5;
+                        float scale = u_scale;
+
+                        float pixelX = gl_FragCoord.x;
+                        float pixelY = h - gl_FragCoord.y;
+
+                        float x = (pixelX - cx) / scale;
+                        float y = (pixelY - cy) / scale;
+
+                        float val = ${poly};
+
+                        vec4 color = (val > 0.0) ? u_colPos : u_colNeg;
+
+                        float d = abs(val) / (fwidth(val) + 0.00001);
+                        float lineThickness = 1.5; 
+                        float alpha = 1.0 - smoothstep(lineThickness - 1.0, lineThickness, d);
+                        
+                        gl_FragColor = mix(color, u_colLine, alpha);
+                    }
+                `;
             }
 
             init() {
                 const gl = this.gl;
                 gl.getExtension('OES_standard_derivatives');
                 
+                const fsSource = this.generateFragShader();
                 const shaderProgram = this.initShaderProgram(vsSource, fsSource);
                 
                 this.programInfo = {
@@ -364,7 +443,7 @@
                 gl.linkProgram(shaderProgram);
                 
                 if (!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS)) {
-                    console.error('Unable to initialize the shader program: ' + gl.getProgramInfoLog(shaderProgram));
+                    console.error('Shader Link Error: ' + gl.getProgramInfoLog(shaderProgram));
                     return null;
                 }
                 return shaderProgram;
@@ -377,7 +456,7 @@
                 gl.compileShader(shader);
                 
                 if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-                    console.error('An error occurred compiling the shaders: ' + gl.getShaderInfoLog(shader));
+                    console.error('Shader Compile Error: ' + gl.getShaderInfoLog(shader));
                     gl.deleteShader(shader);
                     return null;
                 }
@@ -398,10 +477,9 @@
                 return { position: positionBuffer };
             }
 
-            draw(coeffs, width, height) {
+            draw(coeffs) {
                 if (!coeffs) return;
                 const gl = this.gl;
-                const scale = Math.min(width, height) / 2.5;
 
                 gl.useProgram(this.programInfo.program);
 
@@ -409,8 +487,8 @@
                 gl.vertexAttribPointer(this.programInfo.attribLocations.vertexPosition, 2, gl.FLOAT, false, 0, 0);
                 gl.enableVertexAttribArray(this.programInfo.attribLocations.vertexPosition);
 
-                gl.uniform2f(this.programInfo.uniformLocations.resolution, width, height);
-                gl.uniform1f(this.programInfo.uniformLocations.scale, scale);
+                gl.uniform2f(this.programInfo.uniformLocations.resolution, this.width, this.height);
+                gl.uniform1f(this.programInfo.uniformLocations.scale, this.scale);
                 gl.uniform1fv(this.programInfo.uniformLocations.coeffs, coeffs);
                 
                 gl.uniform4fv(this.programInfo.uniformLocations.colPos, COLOR_POS);
@@ -433,8 +511,8 @@
         let renderer;
 
         function init() {
-            renderer = new Renderer(gl);
-            solver = new Solver();
+            solver = new Solver(CURVE_DEGREE);
+            renderer = new Renderer(gl, CURVE_DEGREE);
             
             resize();
             window.addEventListener('resize', resize);
@@ -458,7 +536,17 @@
             uiCanvas.width = width;
             uiCanvas.height = height;
 
-            gl.viewport(0, 0, width, height);
+            // Update Physics Globals
+            const areaPerPoint = (width * height) / POINT_COUNT;
+            const baseScale = Math.sqrt(areaPerPoint);
+            
+            minDistance = baseScale * K_DIST;
+            maxSpeed = baseScale * K_SPEED;
+            maxForce = maxSpeed * K_FORCE; // Force relative to speed
+
+            // Notify systems
+            if (solver) solver.resize(width, height);
+            if (renderer) renderer.resize(width, height);
         }
 
         function animate() {
@@ -471,9 +559,9 @@
                 p.draw(ctx);
             }
 
-            const coeffs = solver.solve(particles, width, height);
+            const coeffs = solver.solve(particles);
             if (coeffs) {
-                renderer.draw(coeffs, width, height);
+                renderer.draw(coeffs);
             }
 
             requestAnimationFrame(animate);
