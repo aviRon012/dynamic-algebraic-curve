@@ -1,75 +1,55 @@
 # Dynamic Algebraic Curve Explorer
 
-**[Live Demo](https://aviron012.github.io/dynamic-algebraic-curve/dynamic-algebraic-curve.html)**
+**[Live Demo](https://aviron012.github.io/dynamic-algebraic-curve/)**
 
-This project is an interactive WebGL visualization that explores **Implicit Algebraic Curves** (defined by $f(x,y) = 0$).
+A visualization of **implicit algebraic curves** ($f(x,y) = 0$) driven by a swarm of autonomous agents.
 
-Unlike traditional graph plotters that draw specific functions, this application uses a "swarm" of autonomous particles. These particles move naturally around the canvas, and in every frame, a specialized **Solver** calculates the unique algebraic curve that passes through all of their positions. A **Renderer** then draws this curve in real-time using a GPU fragment shader.
+This project combines linear algebra and steering behaviors to create an organic, evolving mathematical display. A swarm of particles moves naturally around the screen, and in every frame, the application solves for and renders the unique algebraic curve that passes through all of their positions.
 
-The result is a fluid, organic exploration of mathematical shapes, ranging from simple Conic Sections (circles, ellipses) to complex higher-degree polynomials.
+## Controls
 
-## Key Features
+The UI overlay appears automatically when you move your mouse or touch the screen.
 
-*   **Dynamic Degree:** Support for curves of degrees 1 through 6.
-    *   *Degree 2 (Quadratic):* Ellipses, Hyperbolas, Parabolas (requires 5 points).
-    *   *Degree 3 (Cubic):* Loops, cusps, and serpentine shapes (requires 9 points).
-    *   *Degree 4+ (Quartic+):* Highly complex, multi-component shapes.
-*   **Real-time Physics:** Particles behave like a swarm (separation, cohesion, wandering) and their speed/density scales dynamically with the window size.
-*   **High-Performance Rendering:**
-    *   Uses **Gaussian Elimination** (in JS) to solve the linear system for curve coefficients.
-    *   Uses **WebGL Fragment Shaders** to render the implicit curve per-pixel using standard derivatives for anti-aliasing.
-*   **Modular Architecture:** Built with modern ES6 Modules for clean separation of concerns.
-
-## Directory Structure
-
-*   `dynamic-algebraic-curve.html`: The main entry point. Contains the UI DOM structure and loads the JS modules.
-*   `js/`:
-    *   `main.js`: Application entry point. Handles the event loop, initialization, inputs, and orchestrates the systems.
-    *   `Params.js`: Central configuration file for physics constants, colors, and global state (pause, scale).
-    *   `Solver.js`: The mathematical heart. Generates polynomial terms ($x^2, xy, y^2...$) based on degree and solves the matrix to find the curve coefficients.
-    *   `Renderer.js`: Manages the WebGL context. Generates custom GLSL shaders on-the-fly to match the current curve degree.
-    *   `Particle.js`: Defines the behavior of the individual points (Boids-like physics).
-    *   `Vector.js`: A lightweight 2D Vector math library.
-
-## Running the Project
-
-Because this project uses **ES6 Modules** (`import`/`export`), it **cannot** be run directly from the file system (`file://` protocol) due to browser CORS security restrictions.
-
-**You must use a local web server.**
-
-### Option 1: VS Code (Recommended)
-1.  Install the **Live Server** extension.
-2.  Right-click `dynamic-algebraic-curve.html`.
-3.  Select **"Open with Live Server"**.
-
-### Option 2: Python
-Run this command in the project root:
-```bash
-python -m http.server
-```
-Then open `http://localhost:8000/dynamic-algebraic-curve.html` in your browser.
-
-### Option 3: Node.js
-If you have `npx` installed:
-```bash
-npx http-server .
-```
-
-## User Controls
-
-The application features an auto-hiding UI overlay that appears on mouse movement.
-
-| Control | Action | Description |
+| Action | Desktop (Keyboard) | Mobile / Mouse |
 | :--- | :--- | :--- |
-| **Arrow Up** | Increase Degree | Raises the curve degree (max 6), adding more particles. |
-| **Arrow Down** | Decrease Degree | Lowers the curve degree (min 1), removing particles. |
-| **Space** | Pause / Resume | Freezes the physics simulation to inspect a specific shape. |
-| **R** | Restart | Respawns all particles at random locations. |
-| **C** | Toggle Curve | Hides/Shows the rendered curve to view raw particles. |
-| **Mouse Drag** | Move Particle | **(When Paused)** Click and drag any particle to manually reshape the curve. |
+| **Increase Degree** | `Arrow Up` | `+` Button |
+| **Decrease Degree** | `Arrow Down` | `-` Button |
+| **Pause/Resume** | `Space` | `Pause` Button |
+| **Restart (Randomize)** | `R` | `Restart` Button |
+| **Toggle Curve** | `C` | `Hide Curve` Button |
+| **Move Particle** | Click & Drag (when Paused) | Touch & Drag (when Paused) |
 
-## Development Notes
+> **Note:** On mobile, rotate your device to landscape for the best view of higher-degree curves.
 
-*   **Coordinate System:** The solver normalizes coordinates to a `[-1, 1]` range (scaled by aspect ratio) to ensure numerical stability for higher-degree polynomials.
-*   **Math Logic:** The number of points required for a degree $D$ is calculated as $N = \frac{(D+1)(D+2)}{2} - 1$.
-*   **Visuals:** Colors and visual settings can be tweaked in `js/Params.js`.
+## Implementation Details
+
+The application is built with vanilla JavaScript (ES6 Modules) and uses WebGL for high-performance rendering.
+
+### 1. The Core Loop
+1.  **Physics Update:** Particles calculate steering forces (Separation, Wander, Boundary avoidance) to move to new positions.
+2.  **Algebraic Solver:** The system constructs a matrix where each row represents a particle and each column represents a polynomial term (e.g., $x^2, xy, y^2, x, y, 1$). It solves the linear system $A \cdot c = 0$ to find the coefficient vector $c$.
+3.  **Rendering**:
+    *   **Particles:** Drawn on a standard 2D Canvas.
+    *   **Curve:** The coefficient vector is sent to a WebGL Fragment Shader. The shader evaluates the polynomial for every pixel and draws the zero-set boundary ($f(x,y) \approx 0$).
+
+### 2. Mathematics
+*   **Terms:** A curve of degree $D$ has $N = \frac{(D+1)(D+2)}{2}$ terms. We need $N-1$ points to define it uniquely (up to a scale factor).
+*   **Solver (`Solver.js`):** Implements **Gaussian Elimination with Partial Pivoting** to solve the system. It handles singular matrices (when points are collinear or degenerate) by reusing the previous frame's valid coefficients to prevent flickering.
+*   **Coordinate Space:** All calculations happen in a normalized $[-1, 1]$ coordinate space to ensure numerical stability for high-degree polynomials (avoiding floating-point overflow/underflow).
+
+### 3. Rendering (`Renderer.js`)
+*   **Dynamic Shaders:** The GLSL fragment shader is **generated at runtime**. If you switch from Degree 2 to Degree 6, the JavaScript constructs a new shader string with the appropriate polynomial terms ($x^6, x^5y, \dots$).
+*   **Anti-Aliasing:** The curve is rendered using **Distance Estimation**. The shader calculates the value $val = f(x,y)$ and uses the gradient magnitude $|∇ f|$ (via `fwidth` / `GL_OES_standard_derivatives`) to determine the pixel's distance from the curve, creating smooth, anti-aliased lines.
+
+## Project Structure
+
+*   **`index.html`**: Main entry point and UI overlay.
+*   **`js/`**
+    *   **`main.js`**: Bootstraps the application and handles the event loop.
+    *   **`Simulation.js`**: The central controller. Orchestrates the interaction between Physics, Solver, and Renderer.
+    *   **`Particle.js`**: Implements autonomous agent behaviors (Reynolds' Steering).
+    *   **`Solver.js`**: Linear algebra engine. Contains the Gaussian Elimination logic.
+    *   **`Renderer.js`**: WebGL manager. Compiles shaders and handles drawing commands.
+    *   **`UIManager.js`**: Handles user input (Mouse, Touch, Keyboard) and DOM updates.
+    *   **`Params.js`**: Central configuration for physics constants, colors, and visuals.
+    *   **`Vector.js`**: A lightweight 2D vector utility class.
