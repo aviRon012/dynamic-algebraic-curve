@@ -29,11 +29,20 @@ export class UIManager {
 
         // Keyboard
         window.addEventListener('keydown', (e) => {
-            if (e.key === ' ') this.sim.togglePause();
+            if (e.key === ' ') {
+                e.preventDefault();
+                this.sim.togglePause();
+            }
             if (e.key === 'r' || e.key === 'R') this.sim.spawnParticles();
             if (e.key === 'c' || e.key === 'C') this.sim.toggleCurve();
-            if (e.key === 'ArrowUp') this.sim.setDegree(this.sim.currentDegree + 1);
-            if (e.key === 'ArrowDown') this.sim.setDegree(this.sim.currentDegree - 1);
+            if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                this.sim.setDegree(this.sim.currentDegree + 1);
+            }
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                this.sim.setDegree(this.sim.currentDegree - 1);
+            }
             this.resetIdle();
         });
 
