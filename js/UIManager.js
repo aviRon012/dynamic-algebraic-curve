@@ -54,6 +54,8 @@ export class UIManager {
         // Idle Reset
         window.addEventListener('mousemove', () => this.resetIdle());
         window.addEventListener('mousedown', () => this.resetIdle());
+        window.addEventListener('resize', () => this.resetIdle());
+        window.addEventListener('orientationchange', () => this.resetIdle());
     }
 
     setupCallbacks() {

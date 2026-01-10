@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Dynamic Algebraic Curve</title>
     <style>
         body {
@@ -13,15 +13,15 @@
         }
         canvas {
             display: block;
-            position: absolute;
+            position: fixed;
             top: 0;
             left: 0;
         }
         #glCanvas { z-index: 0; }
         #uiCanvas { z-index: 1; }
         #ui-container {
-            position: absolute;
-            bottom: 40px;
+            position: fixed;
+            bottom: calc(40px + env(safe-area-inset-bottom));
             left: 50%;
             transform: translateX(-50%);
             z-index: 10;
@@ -37,6 +37,8 @@
             display: flex;
             align-items: center;
             gap: 24px;
+            max-width: 90vw;
+            box-sizing: border-box;
         }
         #ui-container.hidden {
             opacity: 0;
@@ -47,6 +49,24 @@
             align-items: center;
             gap: 12px;
             margin: 0;
+        }
+        /* Mobile Layout */
+        @media (max-width: 600px) {
+            #ui-container {
+                flex-direction: column;
+                gap: 12px;
+                padding: 16px;
+                width: max-content;
+                bottom: calc(20px + env(safe-area-inset-bottom));
+            }
+            .row {
+                width: 100%;
+                justify-content: center;
+            }
+            button {
+                padding: 8px 16px; /* Larger touch targets */
+                font-size: 14px;
+            }
         }
         button {
             background: rgba(255, 255, 255, 0.1);
