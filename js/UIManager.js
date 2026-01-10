@@ -28,6 +28,14 @@ export class UIManager {
         document.getElementById('btn-pause').addEventListener('click', () => this.sim.togglePause());
         document.getElementById('btn-curve').addEventListener('click', () => this.sim.cycleViewMode());
 
+        // Info Modal
+        const modal = document.getElementById('info-modal');
+        document.getElementById('btn-info').addEventListener('click', () => modal.classList.add('visible'));
+        document.getElementById('btn-close-modal').addEventListener('click', () => modal.classList.remove('visible'));
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) modal.classList.remove('visible');
+        });
+
         // Keyboard
         window.addEventListener('keydown', (e) => {
             if (e.key === ' ') {

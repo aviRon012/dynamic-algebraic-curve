@@ -108,6 +108,73 @@
             min-width: 20px;
             text-align: center;
         }
+
+        /* Info Modal */
+        #info-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(4px);
+            z-index: 100;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+        #info-modal.visible {
+            opacity: 1;
+            pointer-events: all;
+        }
+        .modal-content {
+            background: rgba(15, 23, 42, 0.95);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 32px;
+            max-width: 500px;
+            width: 90%;
+            color: #e2e8f0;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+            position: relative;
+        }
+        .modal-content h2 {
+            margin-top: 0;
+            color: #5eead4;
+        }
+        .modal-content p {
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+        .modal-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+            margin-top: 24px;
+        }
+        .btn-primary {
+            background: #2dd4bf; /* Teal-500 */
+            color: #0f172a;
+            border: none;
+        }
+        .btn-primary:hover {
+            background: #5eead4; /* Teal-300 */
+        }
+        #btn-close-modal {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            background: transparent;
+            border: none;
+            color: #94a3b8;
+            font-size: 24px;
+            padding: 4px;
+            cursor: pointer;
+        }
+        #btn-close-modal:hover { color: white; }
     </style>
 </head>
 <body>
@@ -124,8 +191,32 @@
             <button id="btn-pause" style="flex: 1" title="Space">Pause</button>
             <button id="btn-restart" style="flex: 1" title="R">Restart</button>
             <button id="btn-curve" style="flex: 1" title="C">View: All</button>
+            <button id="btn-info" title="About">ℹ</button>
         </div>
     </div>
+    
+    <!-- Info Modal -->
+    <div id="info-modal">
+        <div class="modal-content">
+            <button id="btn-close-modal">&times;</button>
+            <h2>Dynamic Algebraic Curve</h2>
+            <p>
+                This is a visualization of <strong>Implicit Algebraic Curves</strong>, defined by the polynomial equation <em>f(x,y) = 0</em>.
+            </p>
+            <p>
+                Unlike standard graphers, the curve is not pre-defined. Instead, a swarm of autonomous particles moves organically, and in every frame, a linear algebra solver calculates the unique curve that passes through all of them.
+            </p>
+            <p>
+                <strong>Tip:</strong> Pause the simulation to drag the particles and reshape the curve manually!
+            </p>
+            <div class="modal-actions">
+                <a href="https://github.com/aviRon012/dynamic-algebraic-curve" target="_blank">
+                    <button class="btn-primary">View Code on GitHub</button>
+                </a>
+            </div>
+        </div>
+    </div>
+
     <canvas id="glCanvas"></canvas>
     <canvas id="uiCanvas"></canvas>
 
