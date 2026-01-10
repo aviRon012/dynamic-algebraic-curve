@@ -26,7 +26,7 @@ export class UIManager {
         document.getElementById('btn-deg-down').addEventListener('click', () => this.sim.setDegree(this.sim.currentDegree - 1));
         document.getElementById('btn-restart').addEventListener('click', () => this.sim.spawnParticles());
         document.getElementById('btn-pause').addEventListener('click', () => this.sim.togglePause());
-        document.getElementById('btn-curve').addEventListener('click', () => this.sim.toggleCurve());
+        document.getElementById('btn-curve').addEventListener('click', () => this.sim.cycleViewMode());
 
         // Keyboard
         window.addEventListener('keydown', (e) => {
@@ -35,7 +35,7 @@ export class UIManager {
                 this.sim.togglePause();
             }
             if (e.key === 'r' || e.key === 'R') this.sim.spawnParticles();
-            if (e.key === 'c' || e.key === 'C') this.sim.toggleCurve();
+            if (e.key === 'c' || e.key === 'C') this.sim.cycleViewMode();
             if (e.key === 'ArrowUp') {
                 e.preventDefault();
                 this.sim.setDegree(this.sim.currentDegree + 1);
@@ -74,8 +74,9 @@ export class UIManager {
             document.getElementById('btn-pause').textContent = isPaused ? 'Resume' : 'Pause';
         };
 
-        this.sim.onCurveVisibilityChange = (showCurve) => {
-            document.getElementById('btn-curve').textContent = showCurve ? 'Hide Curve' : 'Show Curve';
+        this.sim.onViewModeChange = (mode) => {
+            const labels = ['View: All', 'View: Curve', 'View: Points'];
+            document.getElementById('btn-curve').textContent = labels[mode];
         };
     }
 
@@ -107,6 +108,7 @@ export class UIManager {
 
     attemptDragStart(x, y) {
         if (!params.isPaused) return;
+        if (params.viewMode === 1) return; // Cannot drag invisible particles
         
         // Find closest particle within hit radius
         for (let p of this.sim.particles) {

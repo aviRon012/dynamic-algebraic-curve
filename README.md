@@ -16,10 +16,10 @@ The UI overlay appears automatically when you move your mouse or touch the scree
 | **Decrease Degree** | `Arrow Down` | `-` Button |
 | **Pause/Resume** | `Space` | `Pause` Button |
 | **Restart (Randomize)** | `R` | `Restart` Button |
-| **Toggle Curve** | `C` | `Hide Curve` Button |
-| **Move Particle** | Click & Drag (when Paused) | Touch & Drag (when Paused) |
+| **Cycle View Mode** | `C` | `View: ...` Button |
+| **Move Particle** | Drag (when Paused + Visible) | Drag (when Paused + Visible) |
 
-> **Note:** On mobile, rotate your device to landscape for the best view of higher-degree curves.
+> **Note:** The "View Mode" button cycles between **All**, **Curve Only**, and **Points Only**. Dragging particles is only possible when they are visible.
 
 ## Implementation Details
 

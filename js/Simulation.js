@@ -124,9 +124,9 @@ export class Simulation {
         if (this.onPauseChange) this.onPauseChange(params.isPaused);
     }
 
-    toggleCurve() {
-        params.showCurve = !params.showCurve;
-        if (this.onCurveVisibilityChange) this.onCurveVisibilityChange(params.showCurve);
+    cycleViewMode() {
+        params.viewMode = (params.viewMode + 1) % 3;
+        if (this.onViewModeChange) this.onViewModeChange(params.viewMode);
     }
 
     /**
@@ -143,9 +143,14 @@ export class Simulation {
         }
 
         this.ctx.clearRect(0, 0, this.width, this.height);
-        for (let p of this.particles) p.draw(this.ctx);
+        
+        // Draw Particles (Mode 0: Both, Mode 2: Particles Only)
+        if (params.viewMode === 0 || params.viewMode === 2) {
+            for (let p of this.particles) p.draw(this.ctx);
+        }
 
-        if (params.showCurve) {
+        // Draw Curve (Mode 0: Both, Mode 1: Curve Only)
+        if (params.viewMode === 0 || params.viewMode === 1) {
             const coeffs = this.solver.solve(this.particles);
             if (coeffs) this.renderer.draw(coeffs);
         } else {
