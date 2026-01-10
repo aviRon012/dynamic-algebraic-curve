@@ -17,6 +17,7 @@ The UI overlay appears automatically when you move your mouse or touch the scree
 | **Pause/Resume** | `Space` | `Pause` Button |
 | **Restart (Randomize)** | `R` | `Restart` Button |
 | **Cycle View Mode** | `C` | `View: ...` Button |
+| **Show Info / About** | `F1` | `Info` Button |
 | **Move Particle** | Drag (when Paused + Visible) | Drag (when Paused + Visible) |
 
 > **Note:** The "View Mode" button cycles between **All**, **Curve Only**, and **Points Only**. Dragging particles is only possible when they are visible.

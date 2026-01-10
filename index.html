@@ -19,6 +19,8 @@
     <meta property="twitter:description" content="Interactive visualization of implicit algebraic curves driven by autonomous particles.">
     <meta property="twitter:image" content="https://aviron012.github.io/dynamic-algebraic-curve/resources/preview.png">
 
+    <script src="https://unpkg.com/lucide@latest"></script>
+
     <style>
         body {
             margin: 0;
@@ -87,12 +89,21 @@
             background: rgba(255, 255, 255, 0.1);
             border: 1px solid rgba(255, 255, 255, 0.2);
             color: #5eead4;
-            padding: 6px 12px;
+            padding: 0 16px; /* Horizontal padding only, height handles vertical */
+            height: 36px;    /* Fixed height for consistency */
             border-radius: 6px;
             cursor: pointer;
             font-weight: 600;
             transition: all 0.2s;
             white-space: nowrap;
+            display: inline-flex; /* Flex to center content */
+            align-items: center;
+            justify-content: center;
+            gap: 8px; /* Gap for icon+text */
+        }
+        button svg {
+            width: 18px;
+            height: 18px;
         }
         button:hover {
             background: rgba(45, 212, 191, 0.2);
@@ -191,7 +202,7 @@
             <button id="btn-pause" style="flex: 1" title="Space">Pause</button>
             <button id="btn-restart" style="flex: 1" title="R">Restart</button>
             <button id="btn-curve" style="flex: 1" title="C">View: All</button>
-            <button id="btn-info" title="About">ℹ</button>
+            <button id="btn-info" title="F1"><i data-lucide="info"></i></button>
         </div>
     </div>
     
@@ -211,7 +222,9 @@
             </p>
             <div class="modal-actions">
                 <a href="https://github.com/aviRon012/dynamic-algebraic-curve" target="_blank">
-                    <button class="btn-primary">View Code on GitHub</button>
+                    <button class="btn-primary" style="display: flex; align-items: center; gap: 8px;">
+                        <i data-lucide="github"></i> View Code on GitHub
+                    </button>
                 </a>
             </div>
         </div>
@@ -220,6 +233,9 @@
     <canvas id="glCanvas"></canvas>
     <canvas id="uiCanvas"></canvas>
 
+    <script>
+        lucide.createIcons();
+    </script>
     <script type="module" src="js/main.js"></script>
 </body>
 </html>

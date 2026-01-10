@@ -38,6 +38,10 @@ export class UIManager {
 
         // Keyboard
         window.addEventListener('keydown', (e) => {
+            if (e.key === 'F1') {
+                e.preventDefault();
+                modal.classList.add('visible');
+            }
             if (e.key === ' ') {
                 e.preventDefault();
                 this.sim.togglePause();
