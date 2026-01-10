@@ -13,6 +13,7 @@ export class UIManager {
         this.draggedParticle = null;
         this.idleTimer = null;
         this.uiContainer = document.getElementById('ui-container');
+        this.canvas = document.getElementById('uiCanvas');
 
         this.bindEvents();
         this.setupCallbacks();
@@ -50,10 +51,16 @@ export class UIManager {
         window.addEventListener('mousedown', (e) => this.handleMouseDown(e));
         window.addEventListener('mousemove', (e) => this.handleMouseMove(e));
         window.addEventListener('mouseup', () => this.handleMouseUp());
+
+        // Touch Drag (Attached to Canvas only)
+        this.canvas.addEventListener('touchstart', (e) => this.handleTouchStart(e), { passive: false });
+        this.canvas.addEventListener('touchmove', (e) => this.handleTouchMove(e), { passive: false });
+        this.canvas.addEventListener('touchend', () => this.handleTouchEnd());
         
         // Idle Reset
         window.addEventListener('mousemove', () => this.resetIdle());
         window.addEventListener('mousedown', () => this.resetIdle());
+        window.addEventListener('touchstart', () => this.resetIdle());
         window.addEventListener('resize', () => this.resetIdle());
         window.addEventListener('orientationchange', () => this.resetIdle());
     }
@@ -73,35 +80,55 @@ export class UIManager {
     }
 
     handleMouseDown(e) {
+        this.attemptDragStart(e.clientX, e.clientY);
+    }
+
+    handleMouseMove(e) {
+        this.attemptDragMove(e.clientX, e.clientY);
+    }
+
+    handleMouseUp() {
+        this.draggedParticle = null;
+    }
+
+    handleTouchStart(e) {
+        e.preventDefault(); 
+        this.attemptDragStart(e.touches[0].clientX, e.touches[0].clientY);
+    }
+
+    handleTouchMove(e) {
+        e.preventDefault();
+        this.attemptDragMove(e.touches[0].clientX, e.touches[0].clientY);
+    }
+
+    handleTouchEnd() {
+        this.draggedParticle = null;
+    }
+
+    attemptDragStart(x, y) {
         if (!params.isPaused) return;
-        const mouseX = e.clientX;
-        const mouseY = e.clientY;
         
         // Find closest particle within hit radius
         for (let p of this.sim.particles) {
-            const dx = p.pos.x - mouseX;
-            const dy = p.pos.y - mouseY;
-            if (dx*dx + dy*dy < 400) { 
+            const dx = p.pos.x - x;
+            const dy = p.pos.y - y;
+            if (dx*dx + dy*dy < 900) { // Slightly larger hit radius for touch (30px)
                 this.draggedParticle = p;
                 break;
             }
         }
     }
 
-    handleMouseMove(e) {
+    attemptDragMove(x, y) {
         if (this.draggedParticle) {
             if (!params.isPaused) {
                 this.draggedParticle = null;
                 return;
             }
-            this.draggedParticle.pos.x = e.clientX;
-            this.draggedParticle.pos.y = e.clientY;
+            this.draggedParticle.pos.x = x;
+            this.draggedParticle.pos.y = y;
             this.draggedParticle.vel.set(0, 0);
         }
-    }
-
-    handleMouseUp() {
-        this.draggedParticle = null;
     }
 
     initIdleTimer() {
