@@ -17,6 +17,12 @@ export class Simulation {
         this.glCanvas = glCanvas;
         this.uiCanvas = uiCanvas;
         this.gl = glCanvas.getContext('webgl');
+        
+        if (!this.gl) {
+            this.showError("WebGL is not supported in this browser.");
+            return;
+        }
+
         this.ctx = uiCanvas.getContext('2d');
         
         this.width = 0;
@@ -33,6 +39,27 @@ export class Simulation {
         this.onCurveVisibilityChange = null;
 
         this.init();
+    }
+
+    showError(msg) {
+        const errorDiv = document.createElement('div');
+        errorDiv.style.position = 'fixed';
+        errorDiv.style.top = '50%';
+        errorDiv.style.left = '50%';
+        errorDiv.style.transform = 'translate(-50%, -50%)';
+        errorDiv.style.backgroundColor = 'rgba(220, 38, 38, 0.9)';
+        errorDiv.style.color = 'white';
+        errorDiv.style.padding = '20px';
+        errorDiv.style.borderRadius = '8px';
+        errorDiv.style.fontFamily = 'sans-serif';
+        errorDiv.style.zIndex = '1000';
+        errorDiv.style.textAlign = 'center';
+        errorDiv.innerHTML = `<h3>Initialization Error</h3><p>${msg}</p>`;
+        document.body.appendChild(errorDiv);
+        
+        // Hide UI
+        const ui = document.getElementById('ui-container');
+        if (ui) ui.style.display = 'none';
     }
 
     init() {
