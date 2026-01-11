@@ -6,6 +6,14 @@ A visualization of **implicit algebraic curves** ($f(x,y) = 0$) driven by a swar
 
 This project combines linear algebra and steering behaviors to create an organic, evolving mathematical display. A swarm of particles moves naturally around the screen, and in every frame, the application solves for and renders the unique algebraic curve that passes through all of their positions.
 
+## Motivation
+
+Most people are familiar with lines ($Ax + By + C = 0$) and conic sections like circles and ellipses. However, as the degree of the polynomial equation increases, the resulting curves become incredibly complex and beautiful.
+
+Exploring these higher-degree curves randomly is difficult; most combinations of coefficients result in curves that are entirely outside the visible window, or do not exist at all (e.g., $x^2 + y^2 + 1 = 0$).
+
+By **forcing** the curve to pass through a specific set of points within the view, we guarantee that the curve is always visible. The autonomous motion of the particles then serves as a way to "travel" through the continuous space of all possible curves of a given degree, creating a fluid, ever-changing mathematical landscape.
+
 ## Controls
 
 The UI overlay appears automatically when you move your mouse or touch the screen.

@@ -145,9 +145,11 @@
             background: rgba(15, 23, 42, 0.95);
             border: 1px solid rgba(255, 255, 255, 0.1);
             border-radius: 16px;
-            padding: 32px;
+            padding: 24px;
             max-width: 500px;
             width: 90%;
+            max-height: 80dvh; /* Dynamic viewport height fix */
+            overflow-y: auto; /* Enable scrolling */
             color: #e2e8f0;
             box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
             position: relative;
@@ -155,10 +157,22 @@
         .modal-content h2 {
             margin-top: 0;
             color: #5eead4;
+            font-size: 1.5rem;
         }
-        .modal-content p {
-            line-height: 1.6;
-            margin-bottom: 20px;
+        .modal-content h3 {
+            color: #fbbf24; /* Amber for subheaders */
+            font-size: 1.1rem;
+            margin-bottom: 8px;
+            margin-top: 16px;
+        }
+        .modal-content p, .modal-content ul {
+            line-height: 1.5;
+            margin-bottom: 12px;
+            font-size: 0.95rem;
+        }
+        .modal-content ul {
+            padding-left: 20px;
+            margin-top: 0;
         }
         .modal-actions {
             display: flex;
@@ -210,16 +224,25 @@
     <div id="info-modal">
         <div class="modal-content">
             <button id="btn-close-modal">&times;</button>
-            <h2>Dynamic Algebraic Curve</h2>
+            <h2>Dynamic Polynomials</h2>
+            
+            <h3>What is this?</h3>
             <p>
-                This is a visualization of <strong>Implicit Algebraic Curves</strong>, defined by the polynomial equation <em>f(x,y) = 0</em>.
+                A visualization of high-degree algebraic curves (<em>f(x,y) = 0</em>).
             </p>
+
+            <h3>Why the points?</h3>
             <p>
-                Unlike standard graphers, the curve is not pre-defined. Instead, a swarm of autonomous particles moves organically, and in every frame, a linear algebra solver calculates the unique curve that passes through all of them.
+                Random equations usually produce empty screens. By forcing the curve to pass through these moving points, we guarantee interesting, visible shapes.
             </p>
-            <p>
-                <strong>Tip:</strong> Pause the simulation to drag the particles and reshape the curve manually!
-            </p>
+
+            <h3>How to play:</h3>
+            <ul>
+                <li><strong>Watch</strong> the swarm evolve the shape.</li>
+                <li><strong>Pause (Space)</strong> to drag points manually.</li>
+                <li><strong>Change Degree</strong> to see complex loops (deg 3+).</li>
+            </ul>
+
             <div class="modal-actions">
                 <a href="https://github.com/aviRon012/dynamic-algebraic-curve" target="_blank">
                     <button class="btn-primary" style="display: flex; align-items: center; gap: 8px;">
