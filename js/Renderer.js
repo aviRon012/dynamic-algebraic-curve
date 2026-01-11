@@ -86,19 +86,57 @@ export class Renderer {
 
     /**
      * Generates the GLSL Fragment Shader source code.
-     * Constructs the polynomial evaluation string dynamically.
+     * Uses Horner's Method for optimized polynomial evaluation.
      * @returns {string} GLSL source.
      */
     generateFragShader() {
         const termCount = this.terms.length;
-        let poly = "";
+        
+        // Group terms by x power to implement nested Horner's method
+        // P(x, y) = (...(C_n(y)*x + C_{n-1}(y))*x + ...)*x + C_0(y)
+        const xGroups = {}; 
+        let maxX = 0;
+
         for (let i = 0; i < termCount; i++) {
-            let t = this.terms[i];
-            let termStr = `u_coeffs[${i}]`;
-            for(let k=0; k<t.x; k++) termStr += "*x";
-            for(let k=0; k<t.y; k++) termStr += "*y";
-            if (i > 0) poly += " + ";
-            poly += termStr;
+            const t = this.terms[i];
+            if (!xGroups[t.x]) xGroups[t.x] = [];
+            xGroups[t.x].push({ y: t.y, index: i });
+            if (t.x > maxX) maxX = t.x;
+        }
+
+        let poly = "";
+
+        // Iterate x from highest power to 0
+        for (let x = maxX; x >= 0; x--) {
+            const group = xGroups[x] || [];
+            // Sort by y descending for Horner's in y
+            group.sort((a, b) => b.y - a.y);
+
+            let yPoly = "0.0";
+            if (group.length > 0) {
+                let currentY = group[0].y;
+                yPoly = `u_coeffs[${group[0].index}]`;
+
+                for (let i = 1; i < group.length; i++) {
+                    const nextTerm = group[i];
+                    const diff = currentY - nextTerm.y;
+                    
+                    for(let k=0; k<diff; k++) yPoly = `(${yPoly}) * y`;
+                    
+                    yPoly += ` + u_coeffs[${nextTerm.index}]`;
+                    currentY = nextTerm.y;
+                }
+                // Multiply remaining y's (e.g. if last term was y^2)
+                for(let k=0; k<currentY; k++) yPoly = `(${yPoly}) * y`;
+                
+                yPoly = `(${yPoly})`;
+            }
+
+            if (x === maxX) {
+                poly = yPoly;
+            } else {
+                poly = `(${poly}) * x + ${yPoly}`;
+            }
         }
 
         return `
@@ -124,7 +162,7 @@ export class Renderer {
                 float x = (pixelX - cx) / scale;
                 float y = (pixelY - cy) / scale;
                 
-                // Evaluate polynomial
+                // Evaluate polynomial (Horner's Method)
                 float val = ${poly};
                 
                 // Determine color

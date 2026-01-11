@@ -68,19 +68,26 @@ export class Solver {
         if (particles.length !== this.pointCount) return null;
 
         // 1. Fill Matrix
+        const xPowers = new Float64Array(this.degree + 1);
+        const yPowers = new Float64Array(this.degree + 1);
+        xPowers[0] = 1.0;
+        yPowers[0] = 1.0;
+
         for (let i = 0; i < this.pointCount; i++) {
             let p = particles[i];
             let nx = (p.pos.x - this.cx) / this.scale;
             let ny = (p.pos.y - this.cy) / this.scale;
             
+            // Pre-calculate powers for this particle
+            for (let k = 1; k <= this.degree; k++) {
+                xPowers[k] = xPowers[k-1] * nx;
+                yPowers[k] = yPowers[k-1] * ny;
+            }
+
             let row = this.matrix[i];
             for (let j = 0; j < this.termCount; j++) {
                 let t = this.terms[j];
-                let val = 1;
-                // Optimized exponentiation
-                for(let k=0; k<t.x; k++) val *= nx;
-                for(let k=0; k<t.y; k++) val *= ny;
-                row[j] = val;
+                row[j] = xPowers[t.x] * yPowers[t.y];
             }
         }
 

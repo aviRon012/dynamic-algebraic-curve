@@ -53,6 +53,13 @@ export class Vector {
     div(n) { if (n !== 0) { this.x /= n; this.y /= n; } return this; }
 
     /**
+     * Calculates the squared magnitude of the vector.
+     * Faster than mag() as it avoids Math.sqrt().
+     * @returns {number}
+     */
+    magSq() { return this.x * this.x + this.y * this.y; }
+
+    /**
      * Calculates the magnitude (length) of the vector.
      * @returns {number}
      */
@@ -69,7 +76,14 @@ export class Vector {
      * @param {number} max 
      * @returns {Vector} this
      */
-    limit(max) { if (this.mag() > max) { this.normalize(); this.mult(max); } return this; }
+    limit(max) { 
+        let mSq = this.magSq();
+        if (mSq > max * max) { 
+            this.div(Math.sqrt(mSq)); // Normalize manual to avoid re-calculating magSq
+            this.mult(max); 
+        } 
+        return this; 
+    }
 
     /**
      * Calculates the Euclidean distance between two vectors.
@@ -78,6 +92,14 @@ export class Vector {
      * @returns {number}
      */
     static dist(v1, v2) { let dx = v1.x - v2.x; let dy = v1.y - v2.y; return Math.sqrt(dx * dx + dy * dy); }
+
+    /**
+     * Calculates the squared Euclidean distance between two vectors.
+     * @param {Vector} v1 
+     * @param {Vector} v2 
+     * @returns {number}
+     */
+    static distSq(v1, v2) { let dx = v1.x - v2.x; let dy = v1.y - v2.y; return dx * dx + dy * dy; }
 
     /**
      * Returns a new Vector that is the difference (v1 - v2).

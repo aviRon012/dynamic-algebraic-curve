@@ -41,12 +41,13 @@ export class Particle {
      * @returns {Vector} The separation steering force.
      */
     separate(particles, params) {
-        let desiredseparation = params.minDistance;
+        let desiredseparationSq = params.minDistance * params.minDistance;
         this._steer.set(0, 0);
         let count = 0;
         for (let other of particles) {
-            let d = Vector.dist(this.pos, other.pos);
-            if ((other !== this) && (d < desiredseparation)) {
+            let dSq = Vector.distSq(this.pos, other.pos);
+            if ((other !== this) && (dSq < desiredseparationSq) && (dSq > 0)) {
+                let d = Math.sqrt(dSq);
                 this._diff.setVec(this.pos).sub(other.pos);
                 this._diff.normalize();
                 this._diff.div(d);
