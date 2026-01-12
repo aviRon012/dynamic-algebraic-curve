@@ -15,10 +15,12 @@ export class Simulation {
     /**
      * @param {HTMLCanvasElement} glCanvas - Canvas for WebGL rendering.
      * @param {HTMLCanvasElement} uiCanvas - Canvas for 2D particle rendering.
+     * @param {HTMLElement|ShadowRoot} container - The container element for sizing.
      */
-    constructor(glCanvas, uiCanvas) {
+    constructor(glCanvas, uiCanvas, container) {
         this.glCanvas = glCanvas;
         this.uiCanvas = uiCanvas;
+        this.container = container; // Host or ShadowRoot
         this.gl = glCanvas.getContext('webgl');
         
         if (!this.gl) {
@@ -47,8 +49,9 @@ export class Simulation {
     }
 
     showError(msg) {
+        // Updated to append to container (Shadow DOM) instead of document.body
         const errorDiv = document.createElement('div');
-        errorDiv.style.position = 'fixed';
+        errorDiv.style.position = 'absolute';
         errorDiv.style.top = '50%';
         errorDiv.style.left = '50%';
         errorDiv.style.transform = 'translate(-50%, -50%)';
@@ -60,17 +63,22 @@ export class Simulation {
         errorDiv.style.zIndex = '1000';
         errorDiv.style.textAlign = 'center';
         errorDiv.innerHTML = `<h3>Initialization Error</h3><p>${msg}</p>`;
-        document.body.appendChild(errorDiv);
+        
+        if (this.container && this.container.appendChild) {
+            this.container.appendChild(errorDiv);
+        } else {
+            document.body.appendChild(errorDiv);
+        }
         
         // Hide UI
-        const ui = document.getElementById('ui-container');
+        const ui = this.container.getElementById ? this.container.getElementById('ui-container') : document.getElementById('ui-container');
         if (ui) ui.style.display = 'none';
     }
 
     init() {
         this.resize();
         this.setDegree(this.currentDegree); 
-        window.addEventListener('resize', () => this.resize());
+        // Window resize listener removed; handled by Component ResizeObserver
         this.animate();
     }
 
@@ -79,8 +87,9 @@ export class Simulation {
      * Updates canvas dimensions and recalculates physics/rendering scales.
      */
     resize() {
-        this.width = window.innerWidth;
-        this.height = window.innerHeight;
+        // Use container dimensions, falling back to window if not provided (standalone mode)
+        this.width = this.container.host ? this.container.host.clientWidth : (this.container.clientWidth || window.innerWidth);
+        this.height = this.container.host ? this.container.host.clientHeight : (this.container.clientHeight || window.innerHeight);
         
         this.glCanvas.width = this.width;
         this.glCanvas.height = this.height;

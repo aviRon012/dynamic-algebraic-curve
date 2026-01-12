@@ -23,62 +23,9 @@
     <script src="https://unpkg.com/lucide@latest"></script>
 </head>
 <body>
-    <div id="ui-container">
-        <div class="row">
-            <span>Degree:</span>
-            <div class="degree-ctrl">
-                <button id="btn-deg-down" title="Arrow Down">-</button>
-                <span id="degree-val">2</span>
-                <button id="btn-deg-up" title="Arrow Up">+</button>
-            </div>
-        </div>
-        <div class="row">
-            <button id="btn-pause" style="flex: 1" title="Space">Pause</button>
-            <button id="btn-restart" style="flex: 1" title="R">Restart</button>
-            <button id="btn-curve" style="flex: 1" title="C">View: All</button>
-            <button id="btn-info" title="F1"><i data-lucide="info"></i></button>
-        </div>
-    </div>
-    
-    <!-- Info Modal -->
-    <div id="info-modal">
-        <div class="modal-content">
-            <button id="btn-close-modal">&times;</button>
-            <h2>Dynamic Polynomials</h2>
-            
-            <h3>What is this?</h3>
-            <p>
-                A visualization of high-degree algebraic curves (<em>f(x,y) = 0</em>).
-            </p>
+    <!-- The entire application is now this single component -->
+    <algebraic-curve></algebraic-curve>
 
-            <h3>Why the points?</h3>
-            <p>
-                Random equations usually produce empty screens. By forcing the curve to pass through these moving points, we guarantee interesting, visible shapes.
-            </p>
-
-            <h3>How to play:</h3>
-            <ul>
-                <li><strong>Watch</strong> the swarm evolve the shape.</li>
-                <li><strong>Pause (Space)</strong> to drag points manually.</li>
-                <li><strong>Change Degree</strong> to see complex loops (deg 3+).</li>
-            </ul>
-
-            <div class="modal-actions">
-                <a href="https://github.com/aviRon012/dynamic-algebraic-curve" target="_blank">
-                    <button class="btn-primary" style="display: flex; align-items: center; gap: 8px;">
-                        <i data-lucide="github"></i> View Code on GitHub
-                    </button>
-                </a>
-            </div>
-        </div>
-    </div>
-
-    <canvas id="glCanvas"></canvas>
-    <canvas id="uiCanvas"></canvas>
-
-    <script>
-        lucide.createIcons();
-    </script>
-    <script type="module" src="js/main.js"></script>
+    <script type="module" src="js/AlgebraicCurve.js"></script>
 </body>
 </html>
