@@ -234,6 +234,51 @@ export class AlgebraicCurve extends HTMLElement {
         this.idleTimer = null;
     }
 
+    static get observedAttributes() {
+        return ['degree', 'paused', 'view-mode'];
+    }
+
+    attributeChangedCallback(name, oldValue, newValue) {
+        if (!this.simulation) return; // Wait for connection
+
+        switch (name) {
+            case 'degree':
+                const deg = parseInt(newValue);
+                if (!isNaN(deg) && deg !== this.simulation.currentDegree) {
+                    this.simulation.setDegree(deg);
+                }
+                break;
+            case 'paused':
+                const isPaused = newValue !== null; // Presence of attribute = true
+                if (isPaused !== params.isPaused) {
+                    this.simulation.togglePause(); // Toggle matches state if out of sync
+                    // Better: explicit setPause in simulation, but toggle works if we track state
+                    if (params.isPaused !== isPaused) this.simulation.togglePause(); 
+                }
+                break;
+            case 'view-mode':
+                // map "all"->0, "curve"->1, "points"->2
+                const map = { 'all': 0, 'curve': 1, 'points': 2 };
+                const mode = map[newValue] !== undefined ? map[newValue] : parseInt(newValue);
+                if (!isNaN(mode) && mode !== params.viewMode) {
+                    params.viewMode = mode;
+                    this.simulation.triggerUpdate();
+                    this.updateUI(); // Ensure UI button text updates
+                }
+                break;
+        }
+    }
+
+    // Reflect properties to attributes
+    get degree() { return this.simulation ? this.simulation.currentDegree : 2; }
+    set degree(val) { this.setAttribute('degree', val); }
+
+    get paused() { return params.isPaused; }
+    set paused(val) { val ? this.setAttribute('paused', '') : this.removeAttribute('paused'); }
+
+    get viewMode() { return params.viewMode; }
+    set viewMode(val) { this.setAttribute('view-mode', val); }
+
     connectedCallback() {
         this.shadowRoot.innerHTML = template;
         
@@ -242,9 +287,27 @@ export class AlgebraicCurve extends HTMLElement {
         
         this.simulation = new Simulation(glCanvas, uiCanvas, this.shadowRoot);
         
+        // Initial Sync from Attributes (if present on load)
+        if (this.hasAttribute('degree')) this.simulation.setDegree(parseInt(this.getAttribute('degree')));
+        if (this.hasAttribute('paused')) params.isPaused = true;
+        if (this.hasAttribute('view-mode')) {
+             const map = { 'all': 0, 'curve': 1, 'points': 2 };
+             const val = this.getAttribute('view-mode');
+             params.viewMode = map[val] !== undefined ? map[val] : parseInt(val);
+        }
+
         // Hook into simulation state changes to update UI
-        this.simulation.onDegreeChange = (d) => this.updateUI();
-        this.simulation.onPauseChange = (p) => this.updateUI();
+        this.simulation.onDegreeChange = (d) => {
+             this.updateUI();
+             // Optional: Reflect back to attribute? 
+             // avoiding infinite loop by checking current val
+             // if (this.getAttribute('degree') != d) this.setAttribute('degree', d);
+        };
+        this.simulation.onPauseChange = (p) => {
+             this.updateUI();
+             if (p && !this.hasAttribute('paused')) this.setAttribute('paused', '');
+             if (!p && this.hasAttribute('paused')) this.removeAttribute('paused');
+        };
         this.simulation.onViewModeChange = (m) => this.updateUI();
 
         this.resizeObserver = new ResizeObserver(() => {
