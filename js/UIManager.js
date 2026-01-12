@@ -148,6 +148,7 @@ export class UIManager {
             this.draggedParticle.pos.x = x;
             this.draggedParticle.pos.y = y;
             this.draggedParticle.vel.set(0, 0);
+            this.sim.triggerUpdate(); // Force redraw when dragging
         }
     }
 

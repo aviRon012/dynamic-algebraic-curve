@@ -36,6 +36,8 @@ export class Simulation {
         this.currentDegree = 2;
         this.pointCount = 0;
         
+        this.needsUpdate = true; // Dirty flag for rendering
+
         // Event Hooks
         this.onDegreeChange = null;
         this.onPauseChange = null;
@@ -91,6 +93,8 @@ export class Simulation {
 
         if (this.solver) this.solver.resize(this.width, this.height, params.scale);
         if (this.renderer) this.renderer.resize(this.width, this.height, params.scale);
+        
+        this.needsUpdate = true;
     }
 
     /**
@@ -133,6 +137,7 @@ export class Simulation {
         this.resize(); 
         this.spawnParticles();
         
+        this.needsUpdate = true;
         if (this.onDegreeChange) this.onDegreeChange(this.currentDegree);
     }
 
@@ -147,16 +152,26 @@ export class Simulation {
             let y = Math.random() * (this.height - margin * 2) + margin;
             this.particles.push(new Particle(x, y));
         }
+        this.needsUpdate = true;
     }
 
     togglePause() {
         params.isPaused = !params.isPaused;
+        this.needsUpdate = true; // Ensure one frame is drawn to reflect state if needed
         if (this.onPauseChange) this.onPauseChange(params.isPaused);
     }
 
     cycleViewMode() {
         params.viewMode = (params.viewMode + 1) % 3;
+        this.needsUpdate = true;
         if (this.onViewModeChange) this.onViewModeChange(params.viewMode);
+    }
+
+    /**
+     * External trigger for UI interactions (like dragging) to force a redraw.
+     */
+    triggerUpdate() {
+        this.needsUpdate = true;
     }
 
     /**
@@ -166,27 +181,36 @@ export class Simulation {
      * 3. Solves & Draws Curve (WebGL).
      */
     animate() {
-        if (!params.isPaused) {
-            for (let p of this.particles) {
-                p.update(this.particles, this.width, this.height, params);
+        // If not paused, we always update and draw
+        // If paused, we only draw if something marked the frame as dirty (needsUpdate)
+        const shouldRender = !params.isPaused || this.needsUpdate;
+
+        if (shouldRender) {
+            if (!params.isPaused) {
+                for (let p of this.particles) {
+                    p.update(this.particles, this.width, this.height, params);
+                }
             }
-        }
 
-        this.ctx.clearRect(0, 0, this.width, this.height);
-        
-        // Draw Particles (Mode 0: Both, Mode 2: Particles Only)
-        if (params.viewMode === 0 || params.viewMode === 2) {
-            for (let p of this.particles) p.draw(this.ctx);
-        }
+            this.ctx.clearRect(0, 0, this.width, this.height);
+            
+            // Draw Particles (Mode 0: Both, Mode 2: Particles Only)
+            if (params.viewMode === 0 || params.viewMode === 2) {
+                for (let p of this.particles) p.draw(this.ctx);
+            }
 
-        // Draw Curve (Mode 0: Both, Mode 1: Curve Only)
-        if (params.viewMode === 0 || params.viewMode === 1) {
-            const coeffs = this.solver.solve(this.particles);
-            if (coeffs) this.renderer.draw(coeffs);
-        } else {
-            this.renderer.clear();
+            // Draw Curve (Mode 0: Both, Mode 1: Curve Only)
+            if (params.viewMode === 0 || params.viewMode === 1) {
+                const coeffs = this.solver.solve(this.particles);
+                if (coeffs) this.renderer.draw(coeffs);
+            } else {
+                this.renderer.clear();
+            }
+
+            this.needsUpdate = false;
         }
 
         requestAnimationFrame(() => this.animate());
     }
+}
 }
