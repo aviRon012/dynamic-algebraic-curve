@@ -1,4 +1,5 @@
 import { params } from './Params.js';
+import { MIN_DEGREE, MAX_DEGREE } from './Simulation.js';
 
 /**
  * Manages the User Interface and Inputs.
@@ -80,6 +81,8 @@ export class UIManager {
     setupCallbacks() {
         this.sim.onDegreeChange = (degree) => {
             document.getElementById('degree-val').textContent = degree;
+            document.getElementById('btn-deg-down').disabled = (degree <= MIN_DEGREE);
+            document.getElementById('btn-deg-up').disabled = (degree >= MAX_DEGREE);
         };
         
         this.sim.onPauseChange = (isPaused) => {
@@ -90,6 +93,9 @@ export class UIManager {
             const labels = ['View: All', 'View: Curve', 'View: Points'];
             document.getElementById('btn-curve').textContent = labels[mode];
         };
+
+        // Initialize button state
+        this.sim.onDegreeChange(this.sim.currentDegree);
     }
 
     handleMouseDown(e) {

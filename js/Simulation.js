@@ -3,6 +3,9 @@ import { Solver } from './Solver.js';
 import { Renderer } from './Renderer.js';
 import { params, K_DIST, K_SPEED, K_FORCE, VIEW_SCALE_FACTOR } from './Params.js';
 
+export const MIN_DEGREE = 1;
+export const MAX_DEGREE = 6;
+
 /**
  * Orchestrates the entire simulation loop.
  * Manages the physics engine, mathematical solver, and WebGL renderer.
@@ -112,7 +115,7 @@ export class Simulation {
      * @param {number} newDegree 
      */
     setDegree(newDegree) {
-        if (newDegree < 1 || newDegree > 6) return;
+        if (newDegree < MIN_DEGREE || newDegree > MAX_DEGREE) return;
         this.currentDegree = newDegree;
         
         const termCount = ((this.currentDegree + 1) * (this.currentDegree + 2)) / 2;

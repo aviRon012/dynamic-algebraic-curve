@@ -85,6 +85,17 @@ button:hover {
     background: rgba(45, 212, 191, 0.2);
     border-color: #5eead4;
 }
+button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background: transparent;
+    border-color: rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.3);
+}
+button:disabled:hover {
+    background: transparent;
+    border-color: rgba(255, 255, 255, 0.1);
+}
 .degree-ctrl {
     display: flex;
     align-items: center;
