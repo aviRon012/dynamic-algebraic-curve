@@ -12,6 +12,7 @@ export class UIManager {
     constructor(simulation) {
         this.sim = simulation;
         this.draggedParticle = null;
+        this.touchOffset = 0; // Offset for touch dragging to solve "fat finger"
         this.idleTimer = null;
         this.uiContainer = document.getElementById('ui-container');
         this.canvas = document.getElementById('uiCanvas');
@@ -99,6 +100,7 @@ export class UIManager {
     }
 
     handleMouseDown(e) {
+        this.touchOffset = 0;
         this.attemptDragStart(e.clientX, e.clientY);
     }
 
@@ -112,6 +114,7 @@ export class UIManager {
 
     handleTouchStart(e) {
         e.preventDefault(); 
+        this.touchOffset = -60; // Shift particle 60px above finger
         this.attemptDragStart(e.touches[0].clientX, e.touches[0].clientY);
     }
 
@@ -146,7 +149,7 @@ export class UIManager {
                 return;
             }
             this.draggedParticle.pos.x = x;
-            this.draggedParticle.pos.y = y;
+            this.draggedParticle.pos.y = y + this.touchOffset;
             this.draggedParticle.vel.set(0, 0);
             this.sim.triggerUpdate(); // Force redraw when dragging
         }

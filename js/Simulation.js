@@ -213,4 +213,3 @@ export class Simulation {
         requestAnimationFrame(() => this.animate());
     }
 }
-}
