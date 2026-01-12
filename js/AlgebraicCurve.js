@@ -4,7 +4,8 @@ const styles = `
         display: block;
         position: relative;
         width: 100%;
-        height: 100vh; /* Default to full screen if not set */
+        height: 100vh;
+        height: 100dvh; /* Dynamic viewport height for mobile */
         overflow: hidden;
         background-color: #0f172a;
         font-family: sans-serif;
