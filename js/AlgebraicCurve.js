@@ -23,7 +23,7 @@ const styles = `
 
     #ui-container {
         position: absolute;
-        bottom: 40px;
+        bottom: calc(40px + env(safe-area-inset-bottom));
         left: 50%;
         transform: translateX(-50%);
         z-index: 10;
@@ -125,7 +125,7 @@ const styles = `
         padding: 24px;
         max-width: 500px;
         width: 90%;
-        max-height: 80%;
+        max-height: 80dvh;
         overflow-y: auto;
         color: #e2e8f0;
         box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
@@ -155,7 +155,7 @@ const styles = `
             gap: 12px;
             padding: 16px;
             width: max-content;
-            bottom: 20px;
+            bottom: calc(20px + env(safe-area-inset-bottom));
         }
         .row { width: 100%; justify-content: center; }
     }
