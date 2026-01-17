@@ -1,8 +1,32 @@
-import { COLOR_POS, COLOR_NEG, COLOR_LINE } from './Params.js';
-import shaderCode from './shaders/curve.wgsl';
+import { COLOR_POS, COLOR_NEG, COLOR_LINE } from './Params.ts';
+// @ts-ignore
+import shaderCode from '../shaders/curve.wgsl';
+
+// Uniform Buffer Offsets (floats)
+const OFF_COL_POS = 0;
+const OFF_COL_NEG = 4;
+const OFF_COL_LINE = 8;
+const OFF_WIDTH = 12;
+const OFF_HEIGHT = 13;
+const OFF_SCALE = 14;
+const UNIFORM_SIZE = 16 * 4; // 16 floats * 4 bytes = 64 bytes
 
 export class Renderer {
-    constructor(canvas, degree) {
+    canvas: HTMLCanvasElement;
+    degree: number;
+    adapter: GPUAdapter | null;
+    device: GPUDevice | null;
+    context: GPUCanvasContext | null;
+    pipeline: GPURenderPipeline | null;
+    uniformBuffer: GPUBuffer | null;
+    bindGroup: GPUBindGroup | null;
+    width: number;
+    height: number;
+    scale: number;
+    uniformData: Float32Array;
+    isReady: boolean;
+
+    constructor(canvas: HTMLCanvasElement, degree: number) {
         this.canvas = canvas;
         this.degree = degree;
         
@@ -17,35 +41,37 @@ export class Renderer {
         this.height = canvas.height;
         this.scale = 1;
         
-        // Uniform Data: Colors(12) + Res(2) + Scale(1) + Pad(1) + Coeffs(128)
-        this.uniformData = new Float32Array(144);
+        this.uniformData = new Float32Array(UNIFORM_SIZE / 4);
         
-        this.setUniformColor(0, COLOR_POS);
-        this.setUniformColor(4, COLOR_NEG);
-        this.setUniformColor(8, COLOR_LINE);
+        this.setUniformColor(OFF_COL_POS, COLOR_POS);
+        this.setUniformColor(OFF_COL_NEG, COLOR_NEG);
+        this.setUniformColor(OFF_COL_LINE, COLOR_LINE);
         
         this.isReady = false;
-        // init() call removed - will be called by Simulation
     }
 
-    setUniformColor(offset, colorArray) {
+    setUniformColor(offset: number, colorArray: number[] | Float32Array) {
         this.uniformData.set(colorArray, offset);
     }
 
-    async init() {
+    // Explicitly allow passing an existing device (shared with Solver)
+    async init(sharedDevice?: GPUDevice): Promise<string | null> {
         if (!navigator.gpu) {
-            return "WebGPU is not supported in this browser. Try Chrome, Edge, or Firefox Nightly.";
+            return "WebGPU is not supported.";
         }
 
-        this.adapter = await navigator.gpu.requestAdapter();
-        if (!this.adapter) {
-            return "No WebGPU adapter found. Your hardware might not support WebGPU.";
+        if (sharedDevice) {
+            this.device = sharedDevice;
+            this.adapter = null; // Not needed
+        } else {
+            this.adapter = await navigator.gpu.requestAdapter();
+            if (!this.adapter) return "No WebGPU adapter found.";
+            this.device = await this.adapter.requestDevice();
         }
 
-        this.device = await this.adapter.requestDevice();
-        console.log("WebGPU Device acquired:", this.device);
+        this.context = this.canvas.getContext('webgpu') as GPUCanvasContext;
+        if (!this.context) return "Failed to get WebGPU context";
 
-        this.context = this.canvas.getContext('webgpu');
         const presentationFormat = navigator.gpu.getPreferredCanvasFormat();
         this.context.configure({
             device: this.device,
@@ -58,17 +84,22 @@ export class Renderer {
             usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
         });
 
+        // Pipeline creation is delayed until draw() provides the coeffs buffer
+        // Or we assume a bindgroup layout?
+        // Actually, createPipeline handles layout 'auto'.
+        // But createBindGroup needs the coeffs buffer.
+        // So we can create pipeline, but NOT bindgroup yet.
         await this.createPipeline(this.degree);
         
         this.isReady = true;
-        console.log("Renderer Ready!");
-        return null; // No error
+        return null;
     }
 
-    async createPipeline(degree) {
+    async createPipeline(degree: number) {
+        if (!this.device) return;
         this.degree = degree;
-        console.log("Compiling shader with degree override:", degree);
-        if (!shaderCode) console.error("Shader code is empty!");
+        // @ts-ignore
+        if (!shaderCode) return;
 
         const shaderModule = this.device.createShaderModule({
             label: 'Curve Shader',
@@ -95,46 +126,43 @@ export class Renderer {
                 topology: 'triangle-strip',
             }
         });
-
-        this.bindGroup = this.device.createBindGroup({
-            layout: this.pipeline.getBindGroupLayout(0),
-            entries: [
-                {
-                    binding: 0,
-                    resource: { buffer: this.uniformBuffer }
-                }
-            ]
-        });
+        
+        // BindGroup cannot be created without Coeffs Buffer.
+        // It will be created in draw().
     }
 
-    resize(width, height, scale) {
+    resize(width: number, height: number, scale: number) {
         this.width = width;
         this.height = height;
         this.scale = scale;
-        this.uniformData[12] = width;
-        this.uniformData[13] = height;
-        this.uniformData[14] = scale;
+        this.uniformData[OFF_WIDTH] = width;
+        this.uniformData[OFF_HEIGHT] = height;
+        this.uniformData[OFF_SCALE] = scale;
     }
 
     dispose() {
         if (this.uniformBuffer) this.uniformBuffer.destroy();
     }
 
-    async draw(coeffs) {
-        if (!this.isReady || !this.device || !this.pipeline) return;
+    async draw(coeffsBuffer: GPUBuffer) {
+        if (!this.isReady || !this.device || !this.pipeline || !this.context || !this.uniformBuffer) return;
 
-        if (coeffs) {
-            this.uniformData.set(coeffs, 16);
-        }
-
-        this.device.pushErrorScope('validation');
-
+        // Update Uniforms
         this.device.queue.writeBuffer(this.uniformBuffer, 0, this.uniformData);
+
+        // Re-create BindGroup if buffer changed or first time
+        this.bindGroup = this.device.createBindGroup({
+            layout: this.pipeline.getBindGroupLayout(0),
+            entries: [
+                { binding: 0, resource: { buffer: this.uniformBuffer } },
+                { binding: 1, resource: { buffer: coeffsBuffer } }
+            ]
+        });
 
         const commandEncoder = this.device.createCommandEncoder();
         const textureView = this.context.getCurrentTexture().createView();
 
-        const renderPassDescriptor = {
+        const renderPassDescriptor: GPURenderPassDescriptor = {
             colorAttachments: [
                 {
                     view: textureView,
@@ -161,12 +189,12 @@ export class Renderer {
     }
 
     clear() {
-        if (!this.isReady || !this.device) return;
+        if (!this.isReady || !this.device || !this.context) return;
         
         const commandEncoder = this.device.createCommandEncoder();
         const textureView = this.context.getCurrentTexture().createView();
 
-        const renderPassDescriptor = {
+        const renderPassDescriptor: GPURenderPassDescriptor = {
             colorAttachments: [
                 {
                     view: textureView,

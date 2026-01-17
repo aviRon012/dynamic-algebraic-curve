@@ -1,22 +1,362 @@
-class F{constructor(f,u){this.x=f,this.y=u}set(f,u){return this.x=f,this.y=u,this}setVec(f){return this.x=f.x,this.y=f.y,this}add(f){return this.x+=f.x,this.y+=f.y,this}sub(f){return this.x-=f.x,this.y-=f.y,this}mult(f){return this.x*=f,this.y*=f,this}div(f){if(f!==0)this.x/=f,this.y/=f;return this}magSq(){return this.x*this.x+this.y*this.y}mag(){return Math.sqrt(this.x*this.x+this.y*this.y)}normalize(){let f=this.mag();if(f>0)this.div(f);return this}limit(f){let u=this.magSq();if(u>f*f)this.div(Math.sqrt(u)),this.mult(f);return this}static dist(f,u){let z=f.x-u.x,J=f.y-u.y;return Math.sqrt(z*z+J*J)}static distSq(f,u){let z=f.x-u.x,J=f.y-u.y;return z*z+J*J}static sub(f,u){return new F(f.x-u.x,f.y-u.y)}copy(){return new F(this.x,this.y)}}var A=0.22,S=0.0055,I=0.06,P=2.5,V=6,R=[0.11764705882352941,0.1607843137254902,0.23137254901960785,1],C=[0.058823529411764705,0.09019607843137255,0.16470588235294117,1],w=[0.17647058823529413,0.8313725490196079,0.7490196078431373,1],g="#fbbf24";var t=0.3,l=25,h=80,T=50,y=1.5,D=1,W=2,Q={minDistance:100,maxSpeed:2.5,maxForce:0.15,scale:1,isPaused:!1,viewMode:0};class x{constructor(f,u){this.pos=new F(f,u),this.vel=new F(Math.random()*2-1,Math.random()*2-1),this.acc=new F(0,0),this.wanderTheta=Math.random()*Math.PI*2,this._steer=new F(0,0),this._diff=new F(0,0),this._circleCenter=new F(0,0),this._displacement=new F(0,0)}applyForce(f){this.acc.add(f)}separate(f,u){let z=u.minDistance*u.minDistance;this._steer.set(0,0);let J=0;for(let b of f){let Z=F.distSq(this.pos,b.pos);if(b!==this&&Z<z&&Z>0){let Y=Math.sqrt(Z);this._diff.setVec(this.pos).sub(b.pos),this._diff.normalize(),this._diff.div(Y),this._steer.add(this._diff),J++}}if(J>0)this._steer.div(J),this._steer.normalize(),this._steer.mult(u.maxSpeed),this._steer.sub(this.vel),this._steer.limit(u.maxForce*y);return this._steer}wander(f){this.wanderTheta+=(Math.random()*2-1)*t,this._circleCenter.setVec(this.vel),this._circleCenter.normalize(),this._circleCenter.mult(h),this._displacement.set(0,-1),this._displacement.mult(l);let u=this.wanderTheta,z=this._displacement.x,J=this._displacement.y;this._displacement.x=z*Math.cos(u)-J*Math.sin(u),this._displacement.y=z*Math.sin(u)+J*Math.cos(u);let b=this._circleCenter.add(this._displacement);return b.limit(f.maxForce),b}edges(f,u,z){let J=this._diff;if(J.set(0,0),this.pos.x<T)J.x=z.maxSpeed;if(this.pos.x>f-T)J.x=-z.maxSpeed;if(this.pos.y<T)J.y=z.maxSpeed;if(this.pos.y>u-T)J.y=-z.maxSpeed;if(J.mag()>0)J.normalize(),J.mult(z.maxSpeed),J.sub(this.vel),J.limit(z.maxForce*W);return J}update(f,u,z,J){let b=this.separate(f,J),Z=this.wander(J),Y=this.edges(u,z,J);b.mult(y),Z.mult(D),Y.mult(W),this.applyForce(b),this.applyForce(Z),this.applyForce(Y),this.vel.add(this.acc),this.vel.limit(J.maxSpeed),this.pos.add(this.vel),this.acc.mult(0)}draw(f){f.beginPath(),f.arc(this.pos.x,this.pos.y,V,0,Math.PI*2),f.fillStyle=g,f.fill(),f.strokeStyle="white",f.lineWidth=1,f.stroke()}}class j{constructor(f){this.degree=f,this.terms=this.generateTerms(f),this.termCount=this.terms.length,this.pointCount=this.termCount-1,this.prevCoeffs=null,this.matrix=[];for(let u=0;u<this.pointCount;u++)this.matrix.push(new Float64Array(this.termCount));this.coeffsBuffer=new Float64Array(this.termCount),this.width=1,this.height=1,this.cx=0.5,this.cy=0.5,this.scale=1}resize(f,u,z){this.width=f,this.height=u,this.cx=f/2,this.cy=u/2,this.scale=z}generateTerms(f){let u=[];for(let z=f;z>=0;z--)for(let J=z;J>=0;J--){let b=z-J;u.push({x:J,y:b})}return u}solve(f){if(f.length!==this.pointCount)return null;let u=new Float64Array(this.degree+1),z=new Float64Array(this.degree+1);u[0]=1,z[0]=1;for(let k=0;k<this.pointCount;k++){let U=f[k],L=(U.pos.x-this.cx)/this.scale,H=(U.pos.y-this.cy)/this.scale;for(let X=1;X<=this.degree;X++)u[X]=u[X-1]*L,z[X]=z[X-1]*H;let M=this.matrix[k];for(let X=0;X<this.termCount;X++){let q=this.terms[X];M[X]=u[q.x]*z[q.y]}}let J=this.pointCount,b=this.termCount,Z=0;for(let k=0;k<J;k++){if(b<=Z)break;let U=k,L=Math.abs(this.matrix[k][Z]);for(let B=k+1;B<J;B++){let K=Math.abs(this.matrix[B][Z]);if(K>L)L=K,U=B}let H=0.0000000001,M=Math.max(1,L);if(L<H*M){Z++,k--;continue}let X=this.matrix[k];this.matrix[k]=this.matrix[U],this.matrix[U]=X;let q=this.matrix[k][Z];for(let B=0;B<b;B++)this.matrix[k][B]/=q;for(let B=0;B<J;B++){if(B===k)continue;q=this.matrix[B][Z];for(let K=0;K<b;K++)this.matrix[B][K]-=q*this.matrix[k][K]}Z++}this.coeffsBuffer[b-1]=1;for(let k=J-1;k>=0;k--)this.coeffsBuffer[k]=-this.matrix[k][b-1];let Y=0;for(let k of this.coeffsBuffer)Y+=k*k;Y=Math.sqrt(Y);for(let k=0;k<b;k++)this.coeffsBuffer[k]/=Y;if(this.prevCoeffs){let k=0;for(let U=0;U<b;U++)k+=this.coeffsBuffer[U]*this.prevCoeffs[U];if(k<0)for(let U=0;U<b;U++)this.coeffsBuffer[U]*=-1}if(!this.prevCoeffs)this.prevCoeffs=new Float32Array(b);for(let k=0;k<b;k++)this.prevCoeffs[k]=this.coeffsBuffer[k];return this.prevCoeffs}}var O=`// src/js/shaders/curve.wgsl
+var T=`:host {
+    display: block;
+    position: relative;
+    width: 100%;
+    height: 100vh;
+    height: 100dvh; /* Dynamic viewport height for mobile */
+    overflow: hidden;
+    background-color: #0f172a;
+    font-family: sans-serif;
+}
 
-// Specialization Constant: Allows the driver to unroll loops
+canvas {
+    display: block;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+}
+#glCanvas { z-index: 0; }
+#uiCanvas { z-index: 1; }
+
+#ui-container {
+    position: absolute;
+    bottom: calc(40px + env(safe-area-inset-bottom));
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10;
+    color: white;
+    font-family: 'Segoe UI', sans-serif;
+    background: rgba(15, 23, 42, 0.8);
+    padding: 12px 24px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(8px);
+    transition: opacity 0.5s ease;
+    user-select: none;
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    max-width: 90%;
+    box-sizing: border-box;
+}
+#ui-container.hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+.row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 0;
+}
+
+button {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #5eead4;
+    padding: 0 16px;
+    height: 36px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.2s;
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+button svg {
+    width: 18px;
+    height: 18px;
+    stroke: currentColor; /* Inherit color for Lucide icons */
+}
+button:hover {
+    background: rgba(45, 212, 191, 0.2);
+    border-color: #5eead4;
+}
+button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background: transparent;
+    border-color: rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.3);
+}
+
+.degree-ctrl {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+#degree-val {
+    font-weight: bold;
+    min-width: 20px;
+    text-align: center;
+}
+
+/* Info Modal */
+#info-modal {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    z-index: 100;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+}
+#info-modal.visible {
+    opacity: 1;
+    pointer-events: all;
+}
+.modal-content {
+    background: rgba(15, 23, 42, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
+    padding: 24px;
+    max-width: 500px;
+    width: 90%;
+    max-height: 80dvh;
+    overflow-y: auto;
+    color: #e2e8f0;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+    position: relative;
+}
+.modal-content h2 { margin-top: 0; color: #5eead4; font-size: 1.5rem; }
+.modal-content h3 { color: #fbbf24; font-size: 1.1rem; margin-bottom: 8px; margin-top: 16px; }
+.modal-content p, .modal-content ul { line-height: 1.5; margin-bottom: 12px; font-size: 0.95rem; }
+.modal-content ul { padding-left: 20px; margin-top: 0; }
+.modal-actions { display: flex; gap: 12px; justify-content: flex-end; margin-top: 24px; }
+
+.btn-primary { background: #2dd4bf; color: #0f172a; border: none; }
+.btn-primary:hover { background: #5eead4; }
+
+#btn-close-modal {
+    position: absolute;
+    top: 16px; right: 16px;
+    background: transparent; border: none;
+    color: #94a3b8; font-size: 24px;
+    padding: 4px; cursor: pointer;
+}
+#btn-close-modal:hover { color: white; }
+
+@media (max-width: 600px) {
+    #ui-container {
+        flex-direction: column;
+        gap: 12px;
+        padding: 16px;
+        width: max-content;
+        bottom: calc(20px + env(safe-area-inset-bottom));
+    }
+    .row { width: 100%; justify-content: center; }
+}
+`;class l{x;y;constructor(t,i){this.x=t,this.y=i}set(t,i){return this.x=t,this.y=i,this}setVec(t){return this.x=t.x,this.y=t.y,this}add(t){return this.x+=t.x,this.y+=t.y,this}sub(t){return this.x-=t.x,this.y-=t.y,this}mult(t){return this.x*=t,this.y*=t,this}div(t){if(t!==0)this.x/=t,this.y/=t;return this}magSq(){return this.x*this.x+this.y*this.y}mag(){return Math.sqrt(this.x*this.x+this.y*this.y)}normalize(){let t=this.mag();if(t>0)this.div(t);return this}limit(t){let i=this.magSq();if(i>t*t)this.div(Math.sqrt(i)),this.mult(t);return this}static dist(t,i){let r=t.x-i.x,e=t.y-i.y;return Math.sqrt(r*r+e*e)}static distSq(t,i){let r=t.x-i.x,e=t.y-i.y;return r*r+e*e}static sub(t,i){return new l(t.x-i.x,t.y-i.y)}}var j=0.22,U=0.0055,V=0.06,N=2.5,q=6,B=[0.11764705882352941,0.1607843137254902,0.23137254901960785,1],L=[0.058823529411764705,0.09019607843137255,0.16470588235294117,1],D=[0.17647058823529413,0.8313725490196079,0.7490196078431373,1],K="#fbbf24";var W=0.3,J=25,H=80,f=50,m=1.5,E=1,w=2;function Q(){return{minDistance:100,maxSpeed:2.5,maxForce:0.15,scale:1,isPaused:!1,viewMode:0}}class v{pos;vel;acc;wanderTheta;_steer;_diff;_circleCenter;_displacement;constructor(t,i){this.pos=new l(t,i),this.vel=new l(Math.random()*2-1,Math.random()*2-1),this.acc=new l(0,0),this.wanderTheta=Math.random()*Math.PI*2,this._steer=new l(0,0),this._diff=new l(0,0),this._circleCenter=new l(0,0),this._displacement=new l(0,0)}applyForce(t){this.acc.add(t)}separate(t,i){let r=i.minDistance*i.minDistance;this._steer.set(0,0);let e=0;for(let o of t){let n=l.distSq(this.pos,o.pos);if(o!==this&&n<r&&n>0){let a=Math.sqrt(n);this._diff.setVec(this.pos).sub(o.pos),this._diff.normalize(),this._diff.div(a),this._steer.add(this._diff),e++}}if(e>0)this._steer.div(e),this._steer.normalize(),this._steer.mult(i.maxSpeed),this._steer.sub(this.vel),this._steer.limit(i.maxForce*m);return this._steer}wander(t){this.wanderTheta+=(Math.random()*2-1)*W,this._circleCenter.setVec(this.vel),this._circleCenter.normalize(),this._circleCenter.mult(H),this._displacement.set(0,-1),this._displacement.mult(J);let i=this.wanderTheta,r=this._displacement.x,e=this._displacement.y;this._displacement.x=r*Math.cos(i)-e*Math.sin(i),this._displacement.y=r*Math.sin(i)+e*Math.cos(i);let o=this._circleCenter.add(this._displacement);return o.limit(t.maxForce),o}edges(t,i,r){let e=this._diff;if(e.set(0,0),this.pos.x<f)e.x=r.maxSpeed;if(this.pos.x>t-f)e.x=-r.maxSpeed;if(this.pos.y<f)e.y=r.maxSpeed;if(this.pos.y>i-f)e.y=-r.maxSpeed;if(e.mag()>0)e.normalize(),e.mult(r.maxSpeed),e.sub(this.vel),e.limit(r.maxForce*w);return e}update(t,i,r,e){let o=this.separate(t,e),n=this.wander(e),a=this.edges(i,r,e);o.mult(m),n.mult(E),a.mult(w),this.applyForce(o),this.applyForce(n),this.applyForce(a),this.vel.add(this.acc),this.vel.limit(e.maxSpeed),this.pos.add(this.vel),this.acc.mult(0)}draw(t){t.beginPath(),t.arc(this.pos.x,this.pos.y,q,0,Math.PI*2),t.fillStyle=K,t.fill(),t.strokeStyle="white",t.lineWidth=1,t.stroke()}}var X=`// Solver Compute Shader
+
+override pointCount: u32;
+override termCount: u32;
+override degree: u32;
+
+struct SolverParams {
+    scale: f32,
+    width: f32,
+    height: f32,
+    padding: f32,
+}
+
+@group(0) @binding(0) var<storage, read> particles: array<vec2<f32>>;
+@group(0) @binding(1) var<storage, read_write> coeffs: array<f32>;
+@group(0) @binding(2) var<uniform> params: SolverParams;
+@group(0) @binding(3) var<storage, read_write> prevCoeffs: array<f32>;
+@group(0) @binding(4) var<storage, read_write> matrix: array<f32>; // Flat array, size termCount*termCount
+
+var<workgroup> dotProductSum: f32;
+
+// We use 256 threads. This supports matrix sizes up to 256 rows.
+// Degree 20 -> ~230 terms. Safe.
+@compute @workgroup_size(256)
+fn main(@builtin(local_invocation_id) id: vec3<u32>) {
+    let row = id.x;
+    let valid_row = row < pointCount;
+    let n_cols = termCount; // Use override directly
+
+    // --- STEP 1: BUILD MATRIX ---
+    if (valid_row) {
+        let p_raw = particles[row];
+        let cx = params.width * 0.5;
+        let cy = params.height * 0.5;
+        let nx = (p_raw.x - cx) / params.scale;
+        let ny = (p_raw.y - cy) / params.scale;
+
+        var col: u32 = 0u;
+        for (var d = degree; d + 1u > 0u; d--) {
+            for (var px = d; px + 1u > 0u; px--) {
+                let py = d - px;
+                var val = 1.0;
+                for(var k=0u; k<px; k++) { val *= nx; }
+                for(var k=0u; k<py; k++) { val *= ny; }
+                
+                // Flat access: row * stride + col
+                matrix[row * n_cols + col] = val;
+                col++;
+            }
+        }
+    }
+    workgroupBarrier();
+
+    // --- STEP 2: GAUSSIAN ELIMINATION ---
+    let n_rows = pointCount;
+
+    for (var k = 0u; k < n_rows; k++) {
+        // Pivot Finding (Thread 0)
+        if (id.x == 0u) {
+            var max_val = abs(matrix[k * n_cols + k]);
+            var max_row = k;
+            
+            for (var r = k + 1u; r < n_rows; r++) {
+                let val = abs(matrix[r * n_cols + k]);
+                if (val > max_val) {
+                    max_val = val;
+                    max_row = r;
+                }
+            }
+            
+            // Swap rows
+            if (max_row != k) {
+                for (var c = 0u; c < n_cols; c++) {
+                    let idx1 = k * n_cols + c;
+                    let idx2 = max_row * n_cols + c;
+                    let tmp = matrix[idx1];
+                    matrix[idx1] = matrix[idx2];
+                    matrix[idx2] = tmp;
+                }
+            }
+            
+            // Normalize
+            let pivot = matrix[k * n_cols + k];
+            if (abs(pivot) > 1e-10) {
+                for (var c = k; c < n_cols; c++) {
+                    matrix[k * n_cols + c] /= pivot;
+                }
+            }
+        }
+        
+        workgroupBarrier();
+        
+        // Elimination (Parallel by row)
+        // Only threads > k need to work? Or all threads != k?
+        // Standard GE eliminates below pivot.
+        // Parallelizing:
+        // We assigned thread \`row\` to matrix \`row\`.
+        // If \`row > k\`, eliminate.
+        if (valid_row && row > k) { // Only eliminate rows BELOW pivot
+            let pivot_val = matrix[row * n_cols + k];
+            if (abs(pivot_val) > 1e-10) {
+                for (var c = k; c < n_cols; c++) {
+                    // matrix[row][c] -= pivot * matrix[k][c]
+                    let val_k = matrix[k * n_cols + c];
+                    matrix[row * n_cols + c] -= pivot_val * val_k;
+                }
+            }
+        }
+        
+        workgroupBarrier();
+    }
+
+    // --- STEP 3: BACK SUBSTITUTION ---
+    // With RREF/Diagonalization above? No, we did Gaussian (Row Echelon), not Gauss-Jordan (Reduced Row Echelon).
+    // The loop above only eliminates BELOW.
+    // So we have an Upper Triangular matrix.
+    // We need to solve for x by back-substitution.
+    
+    // Thread 0 can do back-sub sequentially (fast enough for N=100)
+    // Or we can do parallel Jordan step.
+    
+    // Let's implement correct Back Substitution for Upper Triangular.
+    // We want to find coeffs c[0]..c[N-1].
+    // We know c[N] = 1 (fixed).
+    // Last equation: M[N-1][N-1] * c[N-1] + M[N-1][N] * 1 = 0
+    // => c[N-1] = -M[N-1][N] / M[N-1][N-1] (Pivot should be 1 if normalized)
+    
+    if (id.x == 0u) {
+        // Initialize coeffs with 0 (or target value)
+        // We need to write to \`coeffs\` array.
+        
+        // Last term is fixed to 1.0
+        // termCount is N+1 terms. pointCount is N equations.
+        // matrix is N x (N+1).
+        // c[N] = 1.0.
+        
+        coeffs[n_rows] = 1.0; 
+        
+        // Iterate rows backwards from N-1 down to 0
+        for (var i_iter = 0u; i_iter < n_rows; i_iter++) {
+            let i = n_rows - 1u - i_iter; // i goes N-1..0
+            
+            // Equation i: sum(M[i][j] * c[j]) = 0 for j=i..N
+            // M[i][i] * c[i] + sum(...) = 0
+            // c[i] = -sum(M[i][j]*c[j]) / M[i][i]
+            // Since we normalized, M[i][i] is 1.0.
+            
+            var sum = 0.0;
+            for (var j = i + 1u; j < n_cols; j++) {
+                sum += matrix[i * n_cols + j] * coeffs[j];
+            }
+            coeffs[i] = -sum;
+        }
+    }
+    workgroupBarrier();
+
+    // --- STEP 4: SIGN CONSISTENCY ---
+    if (id.x == 0u) { dotProductSum = 0.0; }
+    workgroupBarrier();
+
+    if (row < n_cols) {
+        // Parallel dot product part? No, let's just do it serial in thread 0.
+        // Reducing race conditions. 
+    }
+    
+    if (id.x == 0u) {
+        var sum = 0.0;
+        for (var i = 0u; i < n_cols; i++) {
+            sum += coeffs[i] * prevCoeffs[i];
+        }
+        
+        if (sum < 0.0) {
+            for (var i = 0u; i < n_cols; i++) {
+                coeffs[i] = -coeffs[i];
+            }
+        }
+        
+        // Store
+        for (var i = 0u; i < n_cols; i++) {
+            prevCoeffs[i] = coeffs[i];
+        }
+    }
+}
+`;class b{device;degree;pointCount;termCount;pipeline;bindGroup;particleBuffer;coeffsBuffer;prevCoeffsBuffer;paramsBuffer;matrixBuffer;isReady;constructor(t,i){this.device=t,this.degree=i,this.isReady=!1,this.termCount=(i+1)*(i+2)/2,this.pointCount=this.termCount-1,this.pipeline=null,this.bindGroup=null,this.particleBuffer=t.createBuffer({size:this.pointCount*2*4,usage:GPUBufferUsage.STORAGE|GPUBufferUsage.COPY_DST}),this.coeffsBuffer=t.createBuffer({size:this.termCount*4,usage:GPUBufferUsage.STORAGE|GPUBufferUsage.COPY_SRC|GPUBufferUsage.COPY_DST}),this.prevCoeffsBuffer=t.createBuffer({size:this.termCount*4,usage:GPUBufferUsage.STORAGE|GPUBufferUsage.COPY_DST}),this.matrixBuffer=t.createBuffer({size:this.termCount*this.termCount*4,usage:GPUBufferUsage.STORAGE}),this.paramsBuffer=t.createBuffer({size:16,usage:GPUBufferUsage.UNIFORM|GPUBufferUsage.COPY_DST}),this.initPipeline()}async initPipeline(){let t=this.device.createShaderModule({code:X});this.pipeline=await this.device.createComputePipelineAsync({layout:"auto",compute:{module:t,entryPoint:"main",constants:{degree:this.degree,pointCount:this.pointCount,termCount:this.termCount}}}),this.bindGroup=this.device.createBindGroup({layout:this.pipeline.getBindGroupLayout(0),entries:[{binding:0,resource:{buffer:this.particleBuffer}},{binding:1,resource:{buffer:this.coeffsBuffer}},{binding:2,resource:{buffer:this.paramsBuffer}},{binding:3,resource:{buffer:this.prevCoeffsBuffer}},{binding:4,resource:{buffer:this.matrixBuffer}}]}),this.isReady=!0}resize(t,i,r){let e=new Float32Array([r,t,i,0]);this.device.queue.writeBuffer(this.paramsBuffer,0,e)}solve(t){if(!this.pipeline||!this.bindGroup)return;let i=new Float32Array(this.pointCount*2);for(let o=0;o<this.pointCount;o++)i[o*2]=t[o].pos.x,i[o*2+1]=t[o].pos.y;this.device.queue.writeBuffer(this.particleBuffer,0,i);let r=this.device.createCommandEncoder(),e=r.beginComputePass();e.setPipeline(this.pipeline),e.setBindGroup(0,this.bindGroup),e.dispatchWorkgroups(1),e.end(),this.device.queue.submit([r.finish()])}getCoeffsBuffer(){return this.coeffsBuffer}dispose(){this.particleBuffer.destroy(),this.coeffsBuffer.destroy(),this.prevCoeffsBuffer.destroy(),this.paramsBuffer.destroy(),this.matrixBuffer.destroy()}}var y=`// src/shaders/curve.wgsl
+
 override degree: u32;
 
 struct Uniforms {
-    // 16-byte aligned blocks for best compatibility
     colPos: vec4<f32>,
     colNeg: vec4<f32>,
     colLine: vec4<f32>,
     
     resolution: vec2<f32>,
     scale: f32,
-    _pad: f32, // Padding to ensure 16-byte alignment for the array following
-    
-    coeffs: array<vec4<f32>, 32>, // 32 * 4 = 128 floats. 16-byte aligned.
+    _pad: f32, 
 }
 
 @group(0) @binding(0) var<uniform> u: Uniforms;
+@group(0) @binding(1) var<storage, read> coeffs: array<f32>;
 
 struct VertexOutput {
     @builtin(position) position: vec4<f32>,
@@ -24,7 +364,6 @@ struct VertexOutput {
 
 @vertex
 fn vs_main(@builtin(vertex_index) vertexIndex: u32) -> VertexOutput {
-    // Standard full-screen triangle strip/quad positions
     var pos = array<vec2<f32>, 4>(
         vec2<f32>(-1.0, -1.0),
         vec2<f32>( 1.0, -1.0),
@@ -44,231 +383,55 @@ fn fs_main(@builtin(position) fragCoord: vec4<f32>) -> @location(0) vec4<f32> {
     let cx = w * 0.5;
     let cy = h * 0.5;
     
-    // WebGPU origin (0,0) is top-left.
-    // Solver uses Canvas coordinates (Y increases downwards).
     let pixelX = fragCoord.x;
     let pixelY = fragCoord.y; 
     
     let x = (pixelX - cx) / u.scale;
     let y = (pixelY - cy) / u.scale;
     
+    // --- OPTIMIZATION: Pre-calculate Powers ---
+    // Max degree supported here is 20 (requires 21 slots). 
+    // This removes nested loops from the polynomial loop.
+    var x_pows: array<f32, 21>;
+    var y_pows: array<f32, 21>;
+    
+    x_pows[0] = 1.0;
+    y_pows[0] = 1.0;
+    
+    // Calculate powers sequentially (O(D) operations)
+    for (var k = 1u; k <= degree; k = k + 1u) {
+        x_pows[k] = x_pows[k - 1u] * x;
+        y_pows[k] = y_pows[k - 1u] * y;
+    }
+    
     var val = 0.0;
     var idx = 0u;
 
-    // Polynomial Evaluation
-    // Iterate exactly matching the JS Solver term generation order:
-    // Outer: Total Degree 'd' from MAX down to 0
-    // Inner: x power 'px' from 'd' down to 0
+    // --- STEP 2: Polynomial Evaluation ---
+    // Total Ops: O(D^2) instead of O(D^3)
     for (var i = 0u; i <= degree; i = i + 1u) {
         let d = degree - i;
-        
         for (var j = 0u; j <= d; j = j + 1u) {
             let px = d - j;
             let py = d - px;
             
-            // Access packed coefficients
-            // array index = idx / 4
-            // component index = idx % 4
-            let vecIdx = idx / 4u;
-            let compIdx = idx % 4u;
-            let c = u.coeffs[vecIdx][compIdx];
-            
-            // Optimization: Only multiply if power > 0
-            
-            var term = c;
-            
-            // Manual pow() because WGSL pow(neg, int) is undefined/NaN
-            if (px > 0u) {
-                var p_res = 1.0;
-                for(var k=0u; k<px; k=k+1u) { p_res = p_res * x; }
-                term = term * p_res;
-            }
-            if (py > 0u) {
-                var p_res = 1.0;
-                for(var k=0u; k<py; k=k+1u) { p_res = p_res * y; }
-                term = term * p_res;
-            }
-            
-            val = val + term;
+            // Just one multiplication instead of a loop
+            val += coeffs[idx] * x_pows[px] * y_pows[py];
             idx = idx + 1u;
         }
     }
     
     // Anti-Aliasing using Distance Estimation
-    // d = |val| / |grad(val)|
-    // fwidth(val) approximates the change in val over one pixel.
     let d = abs(val) / (fwidth(val) + 0.00001);
     
     let lineThickness = 1.5;
     let alpha = 1.0 - smoothstep(lineThickness - 1.0, lineThickness, d);
     
     let color = select(u.colNeg, u.colPos, val > 0.0);
-    
     return mix(color, u.colLine, alpha);
 }
-`;class _{constructor(f,u){this.canvas=f,this.degree=u,this.adapter=null,this.device=null,this.context=null,this.pipeline=null,this.uniformBuffer=null,this.bindGroup=null,this.width=f.width,this.height=f.height,this.scale=1,this.uniformData=new Float32Array(144),this.setUniformColor(0,R),this.setUniformColor(4,C),this.setUniformColor(8,w),this.isReady=!1}setUniformColor(f,u){this.uniformData.set(u,f)}async init(){if(!navigator.gpu)return"WebGPU is not supported in this browser. Try Chrome, Edge, or Firefox Nightly.";if(this.adapter=await navigator.gpu.requestAdapter(),!this.adapter)return"No WebGPU adapter found. Your hardware might not support WebGPU.";this.device=await this.adapter.requestDevice(),console.log("WebGPU Device acquired:",this.device),this.context=this.canvas.getContext("webgpu");let f=navigator.gpu.getPreferredCanvasFormat();return this.context.configure({device:this.device,format:f,alphaMode:"premultiplied"}),this.uniformBuffer=this.device.createBuffer({size:this.uniformData.byteLength,usage:GPUBufferUsage.UNIFORM|GPUBufferUsage.COPY_DST}),await this.createPipeline(this.degree),this.isReady=!0,console.log("Renderer Ready!"),null}async createPipeline(f){if(this.degree=f,console.log("Compiling shader with degree override:",f),!O)console.error("Shader code is empty!");let u=this.device.createShaderModule({label:"Curve Shader",code:O}),z=navigator.gpu.getPreferredCanvasFormat();this.pipeline=this.device.createRenderPipeline({layout:"auto",vertex:{module:u,entryPoint:"vs_main"},fragment:{module:u,entryPoint:"fs_main",targets:[{format:z}],constants:{degree:f}},primitive:{topology:"triangle-strip"}}),this.bindGroup=this.device.createBindGroup({layout:this.pipeline.getBindGroupLayout(0),entries:[{binding:0,resource:{buffer:this.uniformBuffer}}]})}resize(f,u,z){this.width=f,this.height=u,this.scale=z,this.uniformData[12]=f,this.uniformData[13]=u,this.uniformData[14]=z}dispose(){if(this.uniformBuffer)this.uniformBuffer.destroy()}async draw(f){if(!this.isReady||!this.device||!this.pipeline)return;if(f)this.uniformData.set(f,16);this.device.pushErrorScope("validation"),this.device.queue.writeBuffer(this.uniformBuffer,0,this.uniformData);let u=this.device.createCommandEncoder(),J={colorAttachments:[{view:this.context.getCurrentTexture().createView(),clearValue:{r:0,g:0,b:0,a:0},loadOp:"clear",storeOp:"store"}]},b=u.beginRenderPass(J);b.setPipeline(this.pipeline),b.setBindGroup(0,this.bindGroup),b.draw(4),b.end(),this.device.queue.submit([u.finish()]);let Z=await this.device.popErrorScope();if(Z)console.error("WebGPU Validation Error:",Z.message),this.isReady=!1}clear(){if(!this.isReady||!this.device)return;let f=this.device.createCommandEncoder(),z={colorAttachments:[{view:this.context.getCurrentTexture().createView(),clearValue:{r:0,g:0,b:0,a:0},loadOp:"clear",storeOp:"store"}]};f.beginRenderPass(z).end(),this.device.queue.submit([f.finish()])}}var $=1,G=6;class N{constructor(f,u,z){this.glCanvas=f,this.uiCanvas=u,this.container=z,this.ctx=u.getContext("2d"),this.width=0,this.height=0,this.particles=[],this.solver=null,this.renderer=null,this.currentDegree=2,this.pointCount=0,this.needsUpdate=!0,this.onDegreeChange=null,this.onPauseChange=null,this.onCurveVisibilityChange=null,this.init()}showError(f){let u=document.createElement("div");if(u.style.position="absolute",u.style.top="50%",u.style.left="50%",u.style.transform="translate(-50%, -50%)",u.style.backgroundColor="rgba(220, 38, 38, 0.9)",u.style.color="white",u.style.padding="20px",u.style.borderRadius="8px",u.style.fontFamily="sans-serif",u.style.zIndex="1000",u.style.textAlign="center",u.innerHTML=`<h3>Initialization Error</h3><p>${f}</p>`,this.container&&this.container.appendChild)this.container.appendChild(u);else document.body.appendChild(u);let z=this.container.getElementById?this.container.getElementById("ui-container"):document.getElementById("ui-container");if(z)z.style.display="none"}async init(){this.resize(),await this.setDegree(this.currentDegree),this.animate()}resize(){let f=this.container.host?this.container.host.clientWidth:this.container.clientWidth||window.innerWidth,u=this.container.host?this.container.host.clientHeight:this.container.clientHeight||window.innerHeight,z=window.devicePixelRatio||1;if(this.uiCanvas.width=f*z,this.uiCanvas.height=u*z,this.uiCanvas.style.width=`${f}px`,this.uiCanvas.style.height=`${u}px`,this.ctx.scale(z,z),this.glCanvas.width=f*z,this.glCanvas.height=u*z,this.width=f,this.height=u,this.updatePhysicsParams(),this.solver)this.solver.resize(this.width,this.height,Q.scale);if(this.renderer)this.renderer.resize(this.glCanvas.width,this.glCanvas.height,Q.scale*z);this.needsUpdate=!0}updatePhysicsParams(){if(!this.pointCount)return;let f=this.width*this.height/this.pointCount,u=Math.sqrt(f);Q.minDistance=u*A,Q.maxSpeed=u*S,Q.maxForce=Q.maxSpeed*I,Q.scale=Math.min(this.width,this.height)/P}async setDegree(f){if(f<$||f>G)return;this.currentDegree=f;let u=(this.currentDegree+1)*(this.currentDegree+2)/2;if(this.pointCount=u-1,this.renderer)this.renderer.dispose();this.solver=new j(this.currentDegree),this.renderer=new _(this.glCanvas,this.currentDegree);let z=await this.renderer.init();if(z){this.showError(z);return}if(this.updatePhysicsParams(),this.solver.resize(this.width,this.height,Q.scale),this.renderer.resize(this.glCanvas.width,this.glCanvas.height,Q.scale*(window.devicePixelRatio||1)),this.spawnParticles(),this.needsUpdate=!0,this.onDegreeChange)this.onDegreeChange(this.currentDegree)}spawnParticles(){this.particles=[];let f=Q.minDistance;for(let u=0;u<this.pointCount;u++){let z=Math.random()*(this.width-f*2)+f,J=Math.random()*(this.height-f*2)+f;this.particles.push(new x(z,J))}this.needsUpdate=!0}togglePause(){if(Q.isPaused=!Q.isPaused,this.needsUpdate=!0,this.onPauseChange)this.onPauseChange(Q.isPaused)}cycleViewMode(){if(Q.viewMode=(Q.viewMode+1)%3,this.needsUpdate=!0,this.onViewModeChange)this.onViewModeChange(Q.viewMode)}triggerUpdate(){this.needsUpdate=!0}animate(){if(!Q.isPaused||this.needsUpdate){if(!Q.isPaused)for(let z of this.particles)z.update(this.particles,this.width,this.height,Q);if(this.ctx.clearRect(0,0,this.width,this.height),Q.viewMode===0||Q.viewMode===2)for(let z of this.particles)z.draw(this.ctx);let u=!1;if(Q.viewMode===0||Q.viewMode===1){let z=this.solver.solve(this.particles);if(z&&this.renderer){if(this.renderer.draw(z),this.renderer.isReady)u=!0}}else if(this.renderer){if(this.renderer.clear(),this.renderer.isReady)u=!0}if(Q.viewMode===2||u)this.needsUpdate=!1}requestAnimationFrame(()=>this.animate())}}class o extends HTMLElement{constructor(){super();this.attachShadow({mode:"open"}),this.simulation=null,this.resizeObserver=null,this.draggedParticle=null,this.touchOffset=0,this.idleTimer=null}static get observedAttributes(){return["degree","paused","view-mode"]}attributeChangedCallback(f,u,z){if(!this.simulation)return;switch(f){case"degree":let J=parseInt(z);if(!isNaN(J)&&J!==this.simulation.currentDegree)this.simulation.setDegree(J);break;case"paused":let b=z!==null;if(b!==Q.isPaused){if(this.simulation.togglePause(),Q.isPaused!==b)this.simulation.togglePause()}break;case"view-mode":let Z={all:0,curve:1,points:2},Y=Z[z]!==void 0?Z[z]:parseInt(z);if(!isNaN(Y)&&Y!==Q.viewMode)Q.viewMode=Y,this.simulation.triggerUpdate(),this.updateUI();break}}get degree(){return this.simulation?this.simulation.currentDegree:2}set degree(f){this.setAttribute("degree",f)}get paused(){return Q.isPaused}set paused(f){f?this.setAttribute("paused",""):this.removeAttribute("paused")}get viewMode(){return Q.viewMode}set viewMode(f){this.setAttribute("view-mode",f)}connectedCallback(){this.shadowRoot.innerHTML=`
-    <style>
-    :host {
-        display: block;
-        position: relative;
-        width: 100%;
-        height: 100vh;
-        height: 100dvh; /* Dynamic viewport height for mobile */
-        overflow: hidden;
-        background-color: #0f172a;
-        font-family: sans-serif;
-    }
-    
-    canvas {
-        display: block;
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-    }
-    #glCanvas { z-index: 0; }
-    #uiCanvas { z-index: 1; }
-
-    #ui-container {
-        position: absolute;
-        bottom: calc(40px + env(safe-area-inset-bottom));
-        left: 50%;
-        transform: translateX(-50%);
-        z-index: 10;
-        color: white;
-        font-family: 'Segoe UI', sans-serif;
-        background: rgba(15, 23, 42, 0.8);
-        padding: 12px 24px;
-        border-radius: 12px;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        backdrop-filter: blur(8px);
-        transition: opacity 0.5s ease;
-        user-select: none;
-        display: flex;
-        align-items: center;
-        gap: 24px;
-        max-width: 90%;
-        box-sizing: border-box;
-    }
-    #ui-container.hidden {
-        opacity: 0;
-        pointer-events: none;
-    }
-    .row {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        margin: 0;
-    }
-
-    button {
-        background: rgba(255, 255, 255, 0.1);
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        color: #5eead4;
-        padding: 0 16px;
-        height: 36px;
-        border-radius: 6px;
-        cursor: pointer;
-        font-weight: 600;
-        transition: all 0.2s;
-        white-space: nowrap;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: 8px;
-    }
-    button svg {
-        width: 18px;
-        height: 18px;
-        stroke: currentColor; /* Inherit color for Lucide icons */
-    }
-    button:hover {
-        background: rgba(45, 212, 191, 0.2);
-        border-color: #5eead4;
-    }
-    button:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-        background: transparent;
-        border-color: rgba(255, 255, 255, 0.1);
-        color: rgba(255, 255, 255, 0.3);
-    }
-    
-    .degree-ctrl {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-    }
-    #degree-val {
-        font-weight: bold;
-        min-width: 20px;
-        text-align: center;
-    }
-
-    /* Info Modal */
-    #info-modal {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.6);
-        backdrop-filter: blur(4px);
-        z-index: 100;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        opacity: 0;
-        pointer-events: none;
-        transition: opacity 0.3s ease;
-    }
-    #info-modal.visible {
-        opacity: 1;
-        pointer-events: all;
-    }
-    .modal-content {
-        background: rgba(15, 23, 42, 0.95);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 16px;
-        padding: 24px;
-        max-width: 500px;
-        width: 90%;
-        max-height: 80dvh;
-        overflow-y: auto;
-        color: #e2e8f0;
-        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
-        position: relative;
-    }
-    .modal-content h2 { margin-top: 0; color: #5eead4; font-size: 1.5rem; }
-    .modal-content h3 { color: #fbbf24; font-size: 1.1rem; margin-bottom: 8px; margin-top: 16px; }
-    .modal-content p, .modal-content ul { line-height: 1.5; margin-bottom: 12px; font-size: 0.95rem; }
-    .modal-content ul { padding-left: 20px; margin-top: 0; }
-    .modal-actions { display: flex; gap: 12px; justify-content: flex-end; margin-top: 24px; }
-    
-    .btn-primary { background: #2dd4bf; color: #0f172a; border: none; }
-    .btn-primary:hover { background: #5eead4; }
-    
-    #btn-close-modal {
-        position: absolute;
-        top: 16px; right: 16px;
-        background: transparent; border: none;
-        color: #94a3b8; font-size: 24px;
-        padding: 4px; cursor: pointer;
-    }
-    #btn-close-modal:hover { color: white; }
-
-    @media (max-width: 600px) {
-        #ui-container {
-            flex-direction: column;
-            gap: 12px;
-            padding: 16px;
-            width: max-content;
-            bottom: calc(20px + env(safe-area-inset-bottom));
-        }
-        .row { width: 100%; justify-content: center; }
-    }
-</style>
+`;var I=0,A=4,G=8,O=12,$=13,tt=14,it=64;class k{canvas;degree;adapter;device;context;pipeline;uniformBuffer;bindGroup;width;height;scale;uniformData;isReady;constructor(t,i){this.canvas=t,this.degree=i,this.adapter=null,this.device=null,this.context=null,this.pipeline=null,this.uniformBuffer=null,this.bindGroup=null,this.width=t.width,this.height=t.height,this.scale=1,this.uniformData=new Float32Array(it/4),this.setUniformColor(I,B),this.setUniformColor(A,L),this.setUniformColor(G,D),this.isReady=!1}setUniformColor(t,i){this.uniformData.set(i,t)}async init(t){if(!navigator.gpu)return"WebGPU is not supported.";if(t)this.device=t,this.adapter=null;else{if(this.adapter=await navigator.gpu.requestAdapter(),!this.adapter)return"No WebGPU adapter found.";this.device=await this.adapter.requestDevice()}if(this.context=this.canvas.getContext("webgpu"),!this.context)return"Failed to get WebGPU context";let i=navigator.gpu.getPreferredCanvasFormat();return this.context.configure({device:this.device,format:i,alphaMode:"premultiplied"}),this.uniformBuffer=this.device.createBuffer({size:this.uniformData.byteLength,usage:GPUBufferUsage.UNIFORM|GPUBufferUsage.COPY_DST}),await this.createPipeline(this.degree),this.isReady=!0,null}async createPipeline(t){if(!this.device)return;if(this.degree=t,!y)return;let i=this.device.createShaderModule({label:"Curve Shader",code:y}),r=navigator.gpu.getPreferredCanvasFormat();this.pipeline=this.device.createRenderPipeline({layout:"auto",vertex:{module:i,entryPoint:"vs_main"},fragment:{module:i,entryPoint:"fs_main",targets:[{format:r}],constants:{degree:t}},primitive:{topology:"triangle-strip"}})}resize(t,i,r){this.width=t,this.height=i,this.scale=r,this.uniformData[O]=t,this.uniformData[$]=i,this.uniformData[tt]=r}dispose(){if(this.uniformBuffer)this.uniformBuffer.destroy()}async draw(t){if(!this.isReady||!this.device||!this.pipeline||!this.context||!this.uniformBuffer)return;this.device.queue.writeBuffer(this.uniformBuffer,0,this.uniformData),this.bindGroup=this.device.createBindGroup({layout:this.pipeline.getBindGroupLayout(0),entries:[{binding:0,resource:{buffer:this.uniformBuffer}},{binding:1,resource:{buffer:t}}]});let i=this.device.createCommandEncoder(),e={colorAttachments:[{view:this.context.getCurrentTexture().createView(),clearValue:{r:0,g:0,b:0,a:0},loadOp:"clear",storeOp:"store"}]},o=i.beginRenderPass(e);o.setPipeline(this.pipeline),o.setBindGroup(0,this.bindGroup),o.draw(4),o.end(),this.device.queue.submit([i.finish()]);let n=await this.device.popErrorScope();if(n)console.error("WebGPU Validation Error:",n.message),this.isReady=!1}clear(){if(!this.isReady||!this.device||!this.context)return;let t=this.device.createCommandEncoder(),r={colorAttachments:[{view:this.context.getCurrentTexture().createView(),clearValue:{r:0,g:0,b:0,a:0},loadOp:"clear",storeOp:"store"}]};t.beginRenderPass(r).end(),this.device.queue.submit([t.finish()])}}var P=1,C=6;class _{glCanvas;uiCanvas;container;ctx;width;height;particles;solver;renderer;currentDegree;pointCount;params;draggedParticle;needsUpdate;onDegreeChange;onPauseChange;onViewModeChange;adapter;device;lastTime;frameCount;fps;onFpsUpdate;constructor(t,i,r){this.glCanvas=t,this.uiCanvas=i,this.container=r;let e=i.getContext("2d");if(!e)throw Error("Could not get 2D context");this.ctx=e,this.width=0,this.height=0,this.particles=[],this.solver=null,this.renderer=null,this.currentDegree=2,this.pointCount=0,this.params=Q(),this.draggedParticle=null,this.needsUpdate=!0,this.adapter=null,this.device=null,this.onDegreeChange=null,this.onPauseChange=null,this.onViewModeChange=null,this.lastTime=performance.now(),this.frameCount=0,this.fps=0,this.onFpsUpdate=null,this.init()}showError(t){let i=document.createElement("div");if(i.style.position="absolute",i.style.top="50%",i.style.left="50%",i.style.transform="translate(-50%, -50%)",i.style.backgroundColor="rgba(220, 38, 38, 0.9)",i.style.color="white",i.style.padding="20px",i.style.borderRadius="8px",i.style.fontFamily="sans-serif",i.style.zIndex="1000",i.style.textAlign="center",i.innerHTML=`<h3>Initialization Error</h3><p>${t}</p>`,this.container&&"appendChild"in this.container)this.container.appendChild(i);else document.body.appendChild(i);let r="getElementById"in this.container?this.container.getElementById("ui-container"):document.getElementById("ui-container");if(r)r.style.display="none"}async init(){if(!navigator.gpu){this.showError("WebGPU not supported.");return}if(this.adapter=await navigator.gpu.requestAdapter(),!this.adapter){this.showError("No WebGPU adapter found.");return}this.device=await this.adapter.requestDevice(),this.resize(),await this.setDegree(this.currentDegree),this.animate()}resize(){let t=this.container.host,i=t?t.clientWidth:this.container.clientWidth||window.innerWidth,r=t?t.clientHeight:this.container.clientHeight||window.innerHeight,e=window.devicePixelRatio||1;if(this.uiCanvas.width=i*e,this.uiCanvas.height=r*e,this.uiCanvas.style.width=`${i}px`,this.uiCanvas.style.height=`${r}px`,this.ctx.scale(e,e),this.glCanvas.width=i*e,this.glCanvas.height=r*e,this.width=i,this.height=r,this.updatePhysicsParams(),this.solver)this.solver.resize(this.width,this.height,this.params.scale);if(this.renderer)this.renderer.resize(this.glCanvas.width,this.glCanvas.height,this.params.scale*e);this.needsUpdate=!0}updatePhysicsParams(){if(!this.pointCount)return;let t=this.width*this.height/this.pointCount,i=Math.sqrt(t);this.params.minDistance=i*j,this.params.maxSpeed=i*U,this.params.maxForce=this.params.maxSpeed*V,this.params.scale=Math.min(this.width,this.height)/N}async setDegree(t){if(t<P||t>C)return;this.currentDegree=t;let i=(this.currentDegree+1)*(this.currentDegree+2)/2;if(this.pointCount=i-1,this.updatePhysicsParams(),this.spawnParticles(),this.renderer)this.renderer.dispose();if(this.solver)this.solver.dispose();if(!this.device)return;this.solver=new b(this.device,this.currentDegree),this.renderer=new k(this.glCanvas,this.currentDegree);let r=await this.renderer.init(this.device);if(r){this.showError(r);return}if(this.solver.resize(this.width,this.height,this.params.scale),this.renderer.resize(this.glCanvas.width,this.glCanvas.height,this.params.scale*(window.devicePixelRatio||1)),this.needsUpdate=!0,this.onDegreeChange)this.onDegreeChange(this.currentDegree)}spawnParticles(){this.particles=[];let t=this.params.minDistance;for(let i=0;i<this.pointCount;i++){let r=Math.random()*(this.width-t*2)+t,e=Math.random()*(this.height-t*2)+t;this.particles.push(new v(r,e))}this.needsUpdate=!0}togglePause(){if(this.params.isPaused=!this.params.isPaused,this.needsUpdate=!0,this.onPauseChange)this.onPauseChange(this.params.isPaused)}cycleViewMode(){if(this.params.viewMode=(this.params.viewMode+1)%3,this.needsUpdate=!0,this.onViewModeChange)this.onViewModeChange(this.params.viewMode)}handleInputStart(t,i){if(!this.params.isPaused)return!1;if(this.params.viewMode===1)return!1;let r=900;for(let e of this.particles){let o=e.pos.x-t,n=e.pos.y-i;if(o*o+n*n<r)return this.draggedParticle=e,!0}return!1}handleInputMove(t,i){if(!this.draggedParticle)return;if(!this.params.isPaused){this.draggedParticle=null;return}this.draggedParticle.pos.x=t,this.draggedParticle.pos.y=i,this.draggedParticle.vel.set(0,0),this.needsUpdate=!0}handleInputEnd(){this.draggedParticle=null}triggerUpdate(){this.needsUpdate=!0}animate(){let t=performance.now();if(this.frameCount++,t-this.lastTime>=1000){if(this.fps=this.frameCount,this.frameCount=0,this.lastTime=t,this.onFpsUpdate)this.onFpsUpdate(this.fps)}if(!this.params.isPaused||this.needsUpdate){if(!this.params.isPaused)for(let e of this.particles)e.update(this.particles,this.width,this.height,this.params);if(this.ctx.clearRect(0,0,this.width,this.height),this.params.viewMode===0||this.params.viewMode===2)for(let e of this.particles)e.draw(this.ctx);let r=!1;if(this.params.viewMode===0||this.params.viewMode===1){if(this.solver&&this.solver.isReady&&this.renderer){this.solver.solve(this.particles);let e=this.solver.getCoeffsBuffer();if(this.renderer.draw(e),this.renderer.isReady)r=!0}}else if(this.renderer){if(this.renderer.clear(),this.renderer.isReady)r=!0}if(this.params.viewMode===2||r)this.needsUpdate=!1}requestAnimationFrame(()=>this.animate())}}var et=`
+    <style>${T}</style>
     <div id="ui-container">
         <div class="row">
             <span>Degree:</span>
@@ -320,6 +483,11 @@ fn fs_main(@builtin(position) fragCoord: vec4<f32>) -> @location(0) vec4<f32> {
         </div>
     </div>
 
+    <!-- FPS Counter -->
+    <div id="fps-counter" style="position: absolute; top: 10px; left: 10px; color: #5eead4; font-family: monospace; font-weight: bold; background: rgba(0,0,0,0.5); padding: 4px 8px; border-radius: 4px; pointer-events: none; z-index: 20;">FPS: --</div>
+
     <canvas id="glCanvas"></canvas>
     <canvas id="uiCanvas"></canvas>
-`;let f=this.shadowRoot.getElementById("glCanvas"),u=this.shadowRoot.getElementById("uiCanvas");if(this.simulation=new N(f,u,this.shadowRoot),this.hasAttribute("degree"))this.simulation.setDegree(parseInt(this.getAttribute("degree")));if(this.hasAttribute("paused"))Q.isPaused=!0;if(this.hasAttribute("view-mode")){let z={all:0,curve:1,points:2},J=this.getAttribute("view-mode");Q.viewMode=z[J]!==void 0?z[J]:parseInt(J)}this.simulation.onDegreeChange=(z)=>{this.updateUI()},this.simulation.onPauseChange=(z)=>{if(this.updateUI(),z&&!this.hasAttribute("paused"))this.setAttribute("paused","");if(!z&&this.hasAttribute("paused"))this.removeAttribute("paused")},this.simulation.onViewModeChange=(z)=>this.updateUI(),this.resizeObserver=new ResizeObserver(()=>{if(this.simulation)this.simulation.resize()}),this.resizeObserver.observe(this),this.bindEvents(),this.initIdleTimer(),this.updateUI()}disconnectedCallback(){if(this.resizeObserver)this.resizeObserver.disconnect();window.removeEventListener("keydown",this._handleKeydown)}bindEvents(){let f=(b)=>this.shadowRoot.getElementById(b),u=f("uiCanvas");f("btn-deg-up").onclick=()=>this.simulation.setDegree(this.simulation.currentDegree+1),f("btn-deg-down").onclick=()=>this.simulation.setDegree(this.simulation.currentDegree-1),f("btn-restart").onclick=()=>this.simulation.spawnParticles(),f("btn-pause").onclick=()=>this.simulation.togglePause(),f("btn-curve").onclick=()=>this.simulation.cycleViewMode();let z=f("info-modal");f("btn-info").onclick=()=>z.classList.add("visible"),f("btn-close-modal").onclick=()=>z.classList.remove("visible"),z.onclick=(b)=>{if(b.target===z)z.classList.remove("visible")},u.addEventListener("mousedown",(b)=>{this.touchOffset=0,this.handleDragStart(b.clientX,b.clientY)}),window.addEventListener("mousemove",(b)=>this.handleDragMove(b.clientX,b.clientY)),window.addEventListener("mouseup",()=>this.draggedParticle=null),u.addEventListener("touchstart",(b)=>{b.preventDefault(),this.touchOffset=-60,this.handleDragStart(b.touches[0].clientX,b.touches[0].clientY)},{passive:!1}),u.addEventListener("touchmove",(b)=>{b.preventDefault(),this.handleDragMove(b.touches[0].clientX,b.touches[0].clientY)},{passive:!1}),u.addEventListener("touchend",()=>this.draggedParticle=null);let J=()=>this.resetIdle();u.addEventListener("mousemove",J),u.addEventListener("mousedown",J),u.addEventListener("touchstart",J),this._handleKeydown=(b)=>{if(b.key==="F1")b.preventDefault(),z.classList.add("visible");if(b.key==="Escape")z.classList.remove("visible");if(b.key===" ")b.preventDefault(),this.simulation.togglePause();if(b.key==="r"||b.key==="R")this.simulation.spawnParticles();if(b.key==="c"||b.key==="C")this.simulation.cycleViewMode();if(b.key==="ArrowUp")b.preventDefault(),this.simulation.setDegree(this.simulation.currentDegree+1);if(b.key==="ArrowDown")b.preventDefault(),this.simulation.setDegree(this.simulation.currentDegree-1);J()},window.addEventListener("keydown",this._handleKeydown)}updateUI(){let f=(J)=>this.shadowRoot.getElementById(J),u=this.simulation.currentDegree;f("degree-val").textContent=u,f("btn-deg-down").disabled=u<=$,f("btn-deg-up").disabled=u>=G,f("btn-pause").textContent=Q.isPaused?"Resume":"Pause";let z=["View: All","View: Curve","View: Points"];f("btn-curve").textContent=z[Q.viewMode]}handleDragStart(f,u){if(!Q.isPaused)return;if(Q.viewMode===1)return;let z=this.shadowRoot.getElementById("uiCanvas").getBoundingClientRect(),J=f-z.left,b=u-z.top;for(let Z of this.simulation.particles){let Y=Z.pos.x-J,k=Z.pos.y-b;if(Y*Y+k*k<900){this.draggedParticle=Z;break}}}handleDragMove(f,u){if(!this.draggedParticle)return;if(!Q.isPaused){this.draggedParticle=null;return}let z=this.shadowRoot.getElementById("uiCanvas").getBoundingClientRect(),J=f-z.left,b=u-z.top+this.touchOffset;this.draggedParticle.pos.x=J,this.draggedParticle.pos.y=b,this.draggedParticle.vel.set(0,0),this.simulation.triggerUpdate()}initIdleTimer(){this.resetIdle()}resetIdle(){let f=this.shadowRoot.getElementById("ui-container"),u=this.shadowRoot.getElementById("info-modal");f.classList.remove("hidden"),this.style.cursor="default",clearTimeout(this.idleTimer),this.idleTimer=setTimeout(()=>{if(u.classList.contains("visible")){this.resetIdle();return}f.classList.add("hidden"),this.style.cursor="none"},3000)}}customElements.define("algebraic-curve",o);export{o as AlgebraicCurve};
+`;function rt(){let t=document.getElementById("app-container");if(!t)return;t.innerHTML=et;let i=(s)=>document.getElementById(s),r=i("glCanvas"),e=i("uiCanvas");if(!r||!e)return;let o=new _(r,e,t),n=()=>{let s=o.currentDegree,h=i("btn-deg-down"),d=i("btn-deg-up"),p=i("degree-val"),c=i("btn-pause"),S=i("btn-curve");if(p)p.textContent=s.toString();if(h)h.disabled=s<=P;if(d)d.disabled=s>=C;if(c)c.textContent=o.params.isPaused?"Resume":"Pause";let Z=["View: All","View: Curve","View: Points"];if(S)S.textContent=Z[o.params.viewMode]};o.onDegreeChange=n,o.onPauseChange=n,o.onViewModeChange=n,o.onFpsUpdate=(s)=>{let h=i("fps-counter");if(h)h.textContent=`FPS: ${s}`},n(),i("btn-deg-up").onclick=()=>o.setDegree(o.currentDegree+1),i("btn-deg-down").onclick=()=>o.setDegree(o.currentDegree-1),i("btn-restart").onclick=()=>o.spawnParticles(),i("btn-pause").onclick=()=>o.togglePause(),i("btn-curve").onclick=()=>o.cycleViewMode();let a=i("info-modal");i("btn-info").onclick=()=>a.classList.add("visible"),i("btn-close-modal").onclick=()=>a.classList.remove("visible"),a.onclick=(s)=>{if(s.target===a)a.classList.remove("visible")};let g=0,x=null,M=(s,h)=>{let d=e.getBoundingClientRect(),p=s-d.left,c=h-d.top;o.handleInputStart(p,c)},z=(s,h)=>{let d=e.getBoundingClientRect(),p=s-d.left,c=h-d.top+g;o.handleInputMove(p,c)};e.addEventListener("mousedown",(s)=>{g=0,M(s.clientX,s.clientY)}),window.addEventListener("mousemove",(s)=>z(s.clientX,s.clientY)),window.addEventListener("mouseup",()=>o.handleInputEnd()),e.addEventListener("touchstart",(s)=>{s.preventDefault(),g=-60,M(s.touches[0].clientX,s.touches[0].clientY)},{passive:!1}),e.addEventListener("touchmove",(s)=>{s.preventDefault(),z(s.touches[0].clientX,s.touches[0].clientY)},{passive:!1}),e.addEventListener("touchend",()=>o.handleInputEnd());let u=()=>{let s=i("ui-container");if(!s)return;if(s.classList.remove("hidden"),document.body.style.cursor="default",x)clearTimeout(x);x=setTimeout(()=>{if(a.classList.contains("visible")){u();return}s.classList.add("hidden"),document.body.style.cursor="none"},3000)};u(),e.addEventListener("mousemove",u),e.addEventListener("mousedown",u),e.addEventListener("touchstart",u),window.addEventListener("keydown",(s)=>{if(s.key==="F1")s.preventDefault(),a.classList.add("visible");if(s.key==="Escape")a.classList.remove("visible");if(s.key===" ")s.preventDefault(),o.togglePause();if(s.key==="r"||s.key==="R")o.spawnParticles();if(s.key==="c"||s.key==="C")o.cycleViewMode();if(s.key==="ArrowUp")s.preventDefault(),o.setDegree(o.currentDegree+1);if(s.key==="ArrowDown")s.preventDefault(),o.setDegree(o.currentDegree-1);u()}),window.addEventListener("resize",()=>{o.resize()})}rt();
+
+//# debugId=9A3020B84F5A8D7764756E2164756E21

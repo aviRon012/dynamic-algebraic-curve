@@ -1,46 +1,43 @@
-import { Vector } from './Vector.js';
+import { Vector } from '../math/Vector.ts';
 import { 
     POINT_RADIUS, POINT_COLOR,
     WANDER_RANGE, WANDER_RADIUS, WANDER_DISTANCE,
     EDGE_MARGIN,
-    WEIGHT_SEPARATION, WEIGHT_WANDER, WEIGHT_BOUNDARIES
-} from './Params.js';
+    WEIGHT_SEPARATION, WEIGHT_WANDER, WEIGHT_BOUNDARIES,
+    type SimulationParams
+} from './Params.ts';
 
 /**
  * Represents a single autonomous agent in the simulation.
  * Implements Reynolds-style steering behaviors (Separation, Wander, Bounds).
  */
 export class Particle {
-    /**
-     * @param {number} x - Initial X position.
-     * @param {number} y - Initial Y position.
-     */
-    constructor(x, y) {
+    pos: Vector;
+    vel: Vector;
+    acc: Vector;
+    wanderTheta: number;
+    
+    // Reusable vectors
+    _steer: Vector;
+    _diff: Vector;
+    _circleCenter: Vector;
+    _displacement: Vector;
+
+    constructor(x: number, y: number) {
         this.pos = new Vector(x, y);
         this.vel = new Vector(Math.random() * 2 - 1, Math.random() * 2 - 1);
         this.acc = new Vector(0, 0);
         this.wanderTheta = Math.random() * Math.PI * 2;
         
-        // Reusable vectors for GC optimization
         this._steer = new Vector(0, 0);
         this._diff = new Vector(0, 0);
         this._circleCenter = new Vector(0, 0);
         this._displacement = new Vector(0, 0);
     }
 
-    /**
-     * Applies a force vector to the particle's acceleration.
-     * @param {Vector} force 
-     */
-    applyForce(force) { this.acc.add(force); }
+    applyForce(force: Vector) { this.acc.add(force); }
 
-    /**
-     * Calculates a steering force to maintain distance from other particles.
-     * @param {Particle[]} particles - List of all particles.
-     * @param {Object} params - Physics parameters (minDistance, maxSpeed, maxForce).
-     * @returns {Vector} The separation steering force.
-     */
-    separate(particles, params) {
+    separate(particles: Particle[], params: SimulationParams): Vector {
         let desiredseparationSq = params.minDistance * params.minDistance;
         this._steer.set(0, 0);
         let count = 0;
@@ -65,12 +62,7 @@ export class Particle {
         return this._steer;
     }
 
-    /**
-     * Calculates a random steering force to create natural "wandering" motion.
-     * @param {Object} params - Physics parameters.
-     * @returns {Vector} The wander steering force.
-     */
-    wander(params) {
+    wander(params: SimulationParams): Vector {
         this.wanderTheta += (Math.random() * 2 - 1) * WANDER_RANGE;
         
         this._circleCenter.setVec(this.vel);
@@ -92,14 +84,7 @@ export class Particle {
         return target;
     }
 
-    /**
-     * Calculates a steering force to keep the particle within the canvas bounds.
-     * @param {number} width - Canvas width.
-     * @param {number} height - Canvas height.
-     * @param {Object} params - Physics parameters.
-     * @returns {Vector} The boundary steering force.
-     */
-    edges(width, height, params) {
+    edges(width: number, height: number, params: SimulationParams): Vector {
         let steer = this._diff; // Reuse vector
         steer.set(0, 0);
         
@@ -117,14 +102,7 @@ export class Particle {
         return steer;
     }
 
-    /**
-     * Updates the particle's position and velocity based on behaviors.
-     * @param {Particle[]} particles 
-     * @param {number} width 
-     * @param {number} height 
-     * @param {Object} params 
-     */
-    update(particles, width, height, params) {
+    update(particles: Particle[], width: number, height: number, params: SimulationParams) {
         let sep = this.separate(particles, params);
         let wan = this.wander(params);
         let bnd = this.edges(width, height, params);
@@ -143,11 +121,7 @@ export class Particle {
         this.acc.mult(0);
     }
 
-    /**
-     * Draws the particle on the 2D canvas.
-     * @param {CanvasRenderingContext2D} ctx 
-     */
-    draw(ctx) {
+    draw(ctx: CanvasRenderingContext2D) {
         ctx.beginPath();
         ctx.arc(this.pos.x, this.pos.y, POINT_RADIUS, 0, Math.PI * 2);
         ctx.fillStyle = POINT_COLOR;

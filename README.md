@@ -4,15 +4,15 @@
 
 A visualization of **implicit algebraic curves** ($f(x,y) = 0$) driven by a swarm of autonomous agents.
 
-This project combines linear algebra and steering behaviors to create an organic, evolving mathematical display. A swarm of particles moves naturally around the screen, and in every frame, the application solves for and renders the unique algebraic curve that passes through all of their positions.
+This project combines linear algebra, particle physics, and GPU computing to create an organic, evolving mathematical display. A swarm of particles moves naturally around the screen, and in every frame, the application solves for and renders the unique algebraic curve that passes through all of their positions.
 
 ## Motivation
 
 Most people are familiar with lines ($Ax + By + C = 0$) and conic sections like circles and ellipses. However, as the degree of the polynomial equation increases, the resulting curves become incredibly complex and beautiful.
 
-Exploring these higher-degree curves randomly is difficult; most combinations of coefficients result in curves that are entirely outside the visible window, or do not exist at all (e.g., $x^2 + y^2 + 1 = 0$).
+Exploring these higher-degree curves randomly is difficult; most combinations of coefficients result in curves that are entirely outside the visible window, or do not exist at all.
 
-By **forcing** the curve to pass through a specific set of points within the view, we guarantee that the curve is always visible. The autonomous motion of the particles then serves as a way to "travel" through the continuous space of all possible curves of a given degree, creating a fluid, ever-changing mathematical landscape.
+By **forcing** the curve to pass through a specific set of points within the view, we guarantee that the curve is always visible. The autonomous motion of the particles then serves as a way to "travel" through the continuous space of all possible curves of a given degree.
 
 ## Controls
 
@@ -26,39 +26,56 @@ The UI overlay appears automatically when you move your mouse or touch the scree
 | **Restart (Randomize)** | `R` | `Restart` Button |
 | **Cycle View Mode** | `C` | `View: ...` Button |
 | **Show Info / About** | `F1` | `Info` Button |
+| **Close Info** | `Esc` | `X` Button |
 | **Move Particle** | Drag (when Paused + Visible) | Drag (when Paused + Visible) |
 
-> **Note:** The "View Mode" button cycles between **All**, **Curve Only**, and **Points Only**. Dragging particles is only possible when they are visible.
+## Tech Stack & Implementation
 
-## Implementation Details
+The application is built with **TypeScript** and uses **WebGPU** for high-performance rendering (with a WebGL fallback for older devices).
 
-The application is built with vanilla JavaScript (ES6 Modules) and uses WebGL for high-performance rendering.
+### 1. Architecture
+*   **Engine (`src/engine/`)**: Manages the core simulation loop, orchestrating physics and rendering.
+*   **Math (`src/math/`)**:
+    *   **Gaussian Elimination (`Solver.ts`)**: Solves the linear system $A \cdot c = 0$ to find the polynomial coefficients. It implements partial pivoting for numerical stability.
+    *   **Vector Math (`Vector.ts`)**: A lightweight 2D vector library.
+*   **Rendering (`src/engine/Renderer.ts`)**:
+    *   **WebGPU:** Uses a custom WGSL shader (`src/shaders/curve.wgsl`) to evaluate the polynomial for every pixel in parallel.
+    *   **Specialization Constants:** The shader uses WGSL `override` constants to unroll loops specifically for the current curve degree, maximizing GPU performance.
+    *   **Distance Estimation:** Uses gradient magnitude ($|∇ f|$) via `fwidth` to render smooth, anti-aliased lines.
 
-### 1. The Core Loop
-1.  **Physics Update:** Particles calculate steering forces (Separation, Wander, Boundary avoidance) to move to new positions.
-2.  **Algebraic Solver:** The system constructs a matrix where each row represents a particle and each column represents a polynomial term (e.g., $x^2, xy, y^2, x, y, 1$). It solves the linear system $A \cdot c = 0$ to find the coefficient vector $c$.
-3.  **Rendering**:
-    *   **Particles:** Drawn on a standard 2D Canvas.
-    *   **Curve:** The coefficient vector is sent to a WebGL Fragment Shader. The shader evaluates the polynomial for every pixel and draws the zero-set boundary ($f(x,y) \approx 0$).
+### 2. Build System
+The project uses **Bun** for ultra-fast bundling and development.
+*   **TypeScript**: Native support.
+*   **Shader Import**: Custom loader allows importing `.wgsl` files as raw strings.
+*   **CSS Injection**: Styles are imported and injected at runtime.
 
-### 2. Mathematics
-*   **Terms:** A curve of degree $D$ has $N = \frac{(D+1)(D+2)}{2}$ terms. We need $N-1$ points to define it uniquely (up to a scale factor).
-*   **Solver (`Solver.js`):** Implements **Gaussian Elimination with Partial Pivoting** to solve the system. It handles singular matrices (when points are collinear or degenerate) by reusing the previous frame's valid coefficients to prevent flickering.
-*   **Coordinate Space:** All calculations happen in a normalized $[-1, 1]$ coordinate space to ensure numerical stability for high-degree polynomials (avoiding floating-point overflow/underflow).
+## Development
 
-### 3. Rendering (`Renderer.js`)
-*   **Dynamic Shaders:** The GLSL fragment shader is **generated at runtime**. If you switch from Degree 2 to Degree 6, the JavaScript constructs a new shader string with the appropriate polynomial terms ($x^6, x^5y, \dots$).
-*   **Anti-Aliasing:** The curve is rendered using **Distance Estimation**. The shader calculates the value $val = f(x,y)$ and uses the gradient magnitude $|∇ f|$ (via `fwidth` / `GL_OES_standard_derivatives`) to determine the pixel's distance from the curve, creating smooth, anti-aliased lines.
+1.  **Install Bun**: [https://bun.sh](https://bun.sh)
+2.  **Install Dependencies**:
+    ```bash
+    bun install
+    ```
+3.  **Run Development Server**:
+    ```bash
+    bun run dev   # Watches for changes and rebuilds
+    bun run serve # Serves the app at http://localhost:3000
+    ```
+    *Open two terminals to run both simultaneously.*
+
+4.  **Build for Production**:
+    ```bash
+    bun run build
+    ```
+    *Outputs to `dist/`.*
 
 ## Project Structure
 
-*   **`index.html`**: Main entry point and UI overlay.
-*   **`js/`**
-    *   **`main.js`**: Bootstraps the application and handles the event loop.
-    *   **`Simulation.js`**: The central controller. Orchestrates the interaction between Physics, Solver, and Renderer.
-    *   **`Particle.js`**: Implements autonomous agent behaviors (Reynolds' Steering).
-    *   **`Solver.js`**: Linear algebra engine. Contains the Gaussian Elimination logic.
-    *   **`Renderer.js`**: WebGL manager. Compiles shaders and handles drawing commands.
-    *   **`UIManager.js`**: Handles user input (Mouse, Touch, Keyboard) and DOM updates.
-    *   **`Params.js`**: Central configuration for physics constants, colors, and visuals.
-    *   **`Vector.js`**: A lightweight 2D vector utility class.
+*   **`src/`**
+    *   **`main.ts`**: Entry point. Initializes the app and binds UI events.
+    *   **`engine/`**: Core logic (`Simulation`, `Renderer`, `Particle`).
+    *   **`math/`**: Mathematical solvers and utilities.
+    *   **`shaders/`**: WGSL shader code.
+    *   **`css/`**: Styling.
+*   **`dist/`**: Compiled assets (generated).
+*   **`build.js`**: Bun build configuration.

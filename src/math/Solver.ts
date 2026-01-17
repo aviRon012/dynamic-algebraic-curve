@@ -1,12 +1,27 @@
+import { Particle } from '../engine/Particle.ts';
+
 /**
  * Solves for the coefficients of an implicit algebraic curve passing through a set of points.
  * Uses Gaussian Elimination with Partial Pivoting.
  */
 export class Solver {
+    degree: number;
+    terms: {x: number, y: number}[];
+    termCount: number;
+    pointCount: number;
+    prevCoeffs: Float32Array | null;
+    matrix: Float64Array[];
+    coeffsBuffer: Float64Array;
+    width: number;
+    height: number;
+    cx: number;
+    cy: number;
+    scale: number;
+
     /**
      * @param {number} degree - The degree of the curve (e.g., 2 for Conic, 3 for Cubic).
      */
-    constructor(degree) {
+    constructor(degree: number) {
         this.degree = degree;
         this.terms = this.generateTerms(degree);
         this.termCount = this.terms.length;
@@ -31,11 +46,8 @@ export class Solver {
 
     /**
      * Updates the internal dimensions used for normalizing point coordinates.
-     * @param {number} width 
-     * @param {number} height 
-     * @param {number} scale 
      */
-    resize(width, height, scale) {
+    resize(width: number, height: number, scale: number) {
         this.width = width;
         this.height = height;
         this.cx = width / 2;
@@ -45,10 +57,8 @@ export class Solver {
 
     /**
      * Generates the list of polynomial terms (powers of x and y).
-     * @param {number} degree 
-     * @returns {Object[]} Array of {x: power, y: power} objects.
      */
-    generateTerms(degree) {
+    generateTerms(degree: number) {
         let terms = [];
         for (let d = degree; d >= 0; d--) {
             for (let x = d; x >= 0; x--) {
@@ -61,10 +71,8 @@ export class Solver {
 
     /**
      * Solves the system of linear equations to find the curve coefficients.
-     * @param {Particle[]} particles 
-     * @returns {Float32Array|null} The normalized coefficients, or previous frame's if singular.
      */
-    solve(particles) {
+    solve(particles: Particle[]): Float32Array | null {
         if (particles.length !== this.pointCount) return null;
 
         // 1. Fill Matrix
