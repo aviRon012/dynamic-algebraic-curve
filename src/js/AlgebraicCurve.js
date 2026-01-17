@@ -379,6 +379,7 @@ export class AlgebraicCurve extends HTMLElement {
         // Keyboard (Window level required for shortcuts)
         this._handleKeydown = (e) => {
             if (e.key === 'F1') { e.preventDefault(); modal.classList.add('visible'); }
+            if (e.key === 'Escape') { modal.classList.remove('visible'); }
             if (e.key === ' ') { e.preventDefault(); this.simulation.togglePause(); }
             if (e.key === 'r' || e.key === 'R') this.simulation.spawnParticles();
             if (e.key === 'c' || e.key === 'C') this.simulation.cycleViewMode();
@@ -444,10 +445,18 @@ export class AlgebraicCurve extends HTMLElement {
     
     resetIdle() {
         const ui = this.shadowRoot.getElementById('ui-container');
+        const modal = this.shadowRoot.getElementById('info-modal');
+        
         ui.classList.remove('hidden');
         this.style.cursor = 'default';
         clearTimeout(this.idleTimer);
+        
         this.idleTimer = setTimeout(() => {
+            // Do not hide UI if modal is visible
+            if (modal.classList.contains('visible')) {
+                this.resetIdle(); // Keep checking
+                return;
+            }
             ui.classList.add('hidden');
             this.style.cursor = 'none';
         }, 3000);

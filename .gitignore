@@ -9,5 +9,12 @@ Thumbs.db
 .vscode/
 .idea/
 
-# Dependencies (if added later)
+# Dependencies
 node_modules/
+
+# Bun
+bun.lockb
+
+# Build Artifacts
+# We intentionally do NOT ignore /dist so it can be served by GitHub Pages
+# /dist

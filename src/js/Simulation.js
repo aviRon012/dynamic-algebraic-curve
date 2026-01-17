@@ -13,7 +13,7 @@ export const MAX_DEGREE = 6;
  */
 export class Simulation {
     /**
-     * @param {HTMLCanvasElement} glCanvas - Canvas for WebGL rendering.
+     * @param {HTMLCanvasElement} glCanvas - Canvas for WebGPU rendering.
      * @param {HTMLCanvasElement} uiCanvas - Canvas for 2D particle rendering.
      * @param {HTMLElement|ShadowRoot} container - The container element for sizing.
      */
@@ -21,13 +21,8 @@ export class Simulation {
         this.glCanvas = glCanvas;
         this.uiCanvas = uiCanvas;
         this.container = container; // Host or ShadowRoot
-        this.gl = glCanvas.getContext('webgl');
         
-        if (!this.gl) {
-            this.showError("WebGL is not supported in this browser.");
-            return;
-        }
-
+        // WebGPU context is handled by Renderer
         this.ctx = uiCanvas.getContext('2d');
         
         this.width = 0;
@@ -49,7 +44,6 @@ export class Simulation {
     }
 
     showError(msg) {
-        // Updated to append to container (Shadow DOM) instead of document.body
         const errorDiv = document.createElement('div');
         errorDiv.style.position = 'absolute';
         errorDiv.style.top = '50%';
@@ -70,15 +64,13 @@ export class Simulation {
             document.body.appendChild(errorDiv);
         }
         
-        // Hide UI
         const ui = this.container.getElementById ? this.container.getElementById('ui-container') : document.getElementById('ui-container');
         if (ui) ui.style.display = 'none';
     }
 
-    init() {
+    async init() {
         this.resize();
-        this.setDegree(this.currentDegree); 
-        // Window resize listener removed; handled by Component ResizeObserver
+        await this.setDegree(this.currentDegree); 
         this.animate();
     }
 
@@ -88,20 +80,41 @@ export class Simulation {
      */
     resize() {
         // Use container dimensions, falling back to window if not provided (standalone mode)
-        this.width = this.container.host ? this.container.host.clientWidth : (this.container.clientWidth || window.innerWidth);
-        this.height = this.container.host ? this.container.host.clientHeight : (this.container.clientHeight || window.innerHeight);
+        const logicalWidth = this.container.host ? this.container.host.clientWidth : (this.container.clientWidth || window.innerWidth);
+        const logicalHeight = this.container.host ? this.container.host.clientHeight : (this.container.clientHeight || window.innerHeight);
         
-        this.glCanvas.width = this.width;
-        this.glCanvas.height = this.height;
-        this.uiCanvas.width = this.width;
-        this.uiCanvas.height = this.height;
-
-        this.gl.viewport(0, 0, this.width, this.height);
+        // Handle High-DPI (Retina) Displays
+        const dpr = window.devicePixelRatio || 1;
+        
+        // UI Canvas (2D) - Scale for sharpness
+        this.uiCanvas.width = logicalWidth * dpr;
+        this.uiCanvas.height = logicalHeight * dpr;
+        this.uiCanvas.style.width = `${logicalWidth}px`;
+        this.uiCanvas.style.height = `${logicalHeight}px`;
+        this.ctx.scale(dpr, dpr); // Normalize 2D context to logical coords
+        
+        // WebGPU Canvas - Scale for sharpness
+        this.glCanvas.width = logicalWidth * dpr;
+        this.glCanvas.height = logicalHeight * dpr;
+        // WebGPU canvas style is already 100% via CSS
+        
+        this.width = logicalWidth;
+        this.height = logicalHeight;
 
         this.updatePhysicsParams();
 
+        // Solver uses Logical Coordinates (keeps math consistent regardless of DPI)
         if (this.solver) this.solver.resize(this.width, this.height, params.scale);
-        if (this.renderer) this.renderer.resize(this.width, this.height, params.scale);
+        
+        // Renderer uses Physical Coordinates (for sharp rendering)
+        // We pass the physical resolution and the Scaled scale factor
+        if (this.renderer) {
+            this.renderer.resize(
+                this.glCanvas.width, 
+                this.glCanvas.height, 
+                params.scale * dpr
+            );
+        }
         
         this.needsUpdate = true;
     }
@@ -127,23 +140,36 @@ export class Simulation {
      * Re-initializes particles, solver, and renderer.
      * @param {number} newDegree 
      */
-    setDegree(newDegree) {
+    async setDegree(newDegree) {
         if (newDegree < MIN_DEGREE || newDegree > MAX_DEGREE) return;
         this.currentDegree = newDegree;
         
         const termCount = ((this.currentDegree + 1) * (this.currentDegree + 2)) / 2;
         this.pointCount = termCount - 1;
         
-        // Clean up old WebGL resources
+        // Clean up old resources
         if (this.renderer) {
             this.renderer.dispose();
         }
 
         this.solver = new Solver(this.currentDegree);
-        this.renderer = new Renderer(this.gl, this.currentDegree);
+        this.renderer = new Renderer(this.glCanvas, this.currentDegree);
         
+        // Check for initialization error
+        const error = await this.renderer.init();
+        if (error) {
+            this.showError(error);
+            return;
+        }
+
         this.updatePhysicsParams();
-        this.resize(); 
+        this.solver.resize(this.width, this.height, params.scale);
+        this.renderer.resize(
+            this.glCanvas.width, 
+            this.glCanvas.height, 
+            params.scale * (window.devicePixelRatio || 1)
+        );
+        
         this.spawnParticles();
         
         this.needsUpdate = true;
@@ -166,7 +192,7 @@ export class Simulation {
 
     togglePause() {
         params.isPaused = !params.isPaused;
-        this.needsUpdate = true; // Ensure one frame is drawn to reflect state if needed
+        this.needsUpdate = true;
         if (this.onPauseChange) this.onPauseChange(params.isPaused);
     }
 
@@ -185,9 +211,6 @@ export class Simulation {
 
     /**
      * The main animation loop.
-     * 1. Updates Physics (if not paused).
-     * 2. Clears & Draws Particles (2D Canvas).
-     * 3. Solves & Draws Curve (WebGL).
      */
     animate() {
         // If not paused, we always update and draw
@@ -209,14 +232,27 @@ export class Simulation {
             }
 
             // Draw Curve (Mode 0: Both, Mode 1: Curve Only)
+            let curveDrawn = false;
             if (params.viewMode === 0 || params.viewMode === 1) {
                 const coeffs = this.solver.solve(this.particles);
-                if (coeffs) this.renderer.draw(coeffs);
+                if (coeffs && this.renderer) {
+                     this.renderer.draw(coeffs);
+                     // If renderer wasn't ready, it skipped drawing.
+                     // We check isReady to know if we succeeded.
+                     if (this.renderer.isReady) curveDrawn = true;
+                }
             } else {
-                this.renderer.clear();
+                if (this.renderer) {
+                    this.renderer.clear();
+                    if (this.renderer.isReady) curveDrawn = true;
+                }
             }
 
-            this.needsUpdate = false;
+            // Only mark update complete if we aren't waiting for the renderer
+            // If viewMode is particles only (2), we don't care about renderer
+            if (params.viewMode === 2 || curveDrawn) {
+                this.needsUpdate = false;
+            }
         }
 
         requestAnimationFrame(() => this.animate());
