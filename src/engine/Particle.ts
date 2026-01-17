@@ -125,7 +125,10 @@ export class Particle {
         ctx.beginPath();
         ctx.arc(this.pos.x, this.pos.y, POINT_RADIUS, 0, Math.PI * 2);
         ctx.fillStyle = POINT_COLOR;
+        ctx.shadowColor = POINT_COLOR;
+        ctx.shadowBlur = 10;
         ctx.fill();
+        ctx.shadowBlur = 0; // Reset
         ctx.strokeStyle = 'white';
         ctx.lineWidth = 1;
         ctx.stroke();

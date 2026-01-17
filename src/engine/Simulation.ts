@@ -169,6 +169,10 @@ export class Simulation {
         this.updatePhysicsParams();
         this.spawnParticles();
 
+        if (this.device) {
+            await this.device.queue.onSubmittedWorkDone();
+        }
+
         if (this.renderer) this.renderer.dispose();
         if (this.solver) this.solver.dispose();
 

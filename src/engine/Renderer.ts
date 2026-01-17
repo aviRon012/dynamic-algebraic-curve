@@ -138,42 +138,49 @@ export class Renderer {
     async draw(coeffsBuffer: GPUBuffer) {
         if (!this.isReady || !this.device || !this.pipeline || !this.context || !this.uniformBuffer) return;
 
-        this.device.queue.writeBuffer(this.uniformBuffer, 0, this.uniformData as any);
+        this.device.pushErrorScope('validation');
 
-        this.bindGroup = this.device.createBindGroup({
-            layout: this.pipeline!.getBindGroupLayout(0),
-            entries: [
-                { binding: 0, resource: { buffer: this.uniformBuffer! } },
-                { binding: 1, resource: { buffer: coeffsBuffer } }
-            ]
-        });
+        try {
+            this.device.queue.writeBuffer(this.uniformBuffer, 0, this.uniformData as any);
 
-        const commandEncoder = this.device.createCommandEncoder();
-        const textureView = this.context!.getCurrentTexture().createView();
+            this.bindGroup = this.device.createBindGroup({
+                layout: this.pipeline!.getBindGroupLayout(0),
+                entries: [
+                    { binding: 0, resource: { buffer: this.uniformBuffer! } },
+                    { binding: 1, resource: { buffer: coeffsBuffer } }
+                ]
+            });
 
-        const renderPassDescriptor: GPURenderPassDescriptor = {
-            colorAttachments: [
-                {
-                    view: textureView,
-                    clearValue: { r: 0, g: 0, b: 0, a: 0 },
-                    loadOp: 'clear',
-                    storeOp: 'store',
-                },
-            ],
-        };
+            const commandEncoder = this.device.createCommandEncoder();
+            const textureView = this.context!.getCurrentTexture().createView();
 
-        const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
-        passEncoder.setPipeline(this.pipeline!);
-        passEncoder.setBindGroup(0, this.bindGroup);
-        passEncoder.draw(4);
-        passEncoder.end();
+            const renderPassDescriptor: GPURenderPassDescriptor = {
+                colorAttachments: [
+                    {
+                        view: textureView,
+                        clearValue: { r: 0, g: 0, b: 0, a: 0 },
+                        loadOp: 'clear',
+                        storeOp: 'store',
+                    },
+                ],
+            };
 
-        this.device.queue.submit([commandEncoder.finish()]);
-        
-        const error = await this.device.popErrorScope();
-        if (error) {
-            console.error("WebGPU Validation Error:", error.message);
-            this.isReady = false; 
+            const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
+            passEncoder.setPipeline(this.pipeline!);
+            passEncoder.setBindGroup(0, this.bindGroup);
+            passEncoder.draw(4);
+            passEncoder.end();
+
+            this.device.queue.submit([commandEncoder.finish()]);
+            
+            const error = await this.device.popErrorScope();
+            if (error) {
+                console.error("WebGPU Validation Error:", error.message);
+                this.isReady = false; 
+            }
+        } catch (e) {
+            console.error("Render Error:", e);
+            this.isReady = false;
         }
     }
 
