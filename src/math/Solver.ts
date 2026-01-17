@@ -92,10 +92,10 @@ export class Solver {
                 yPowers[k] = yPowers[k-1] * ny;
             }
 
-            let row = this.matrix[i];
+            let row = this.matrix[i]!;
             for (let j = 0; j < this.termCount; j++) {
-                let t = this.terms[j];
-                row[j] = xPowers[t.x] * yPowers[t.y];
+                let t = this.terms[j]!;
+                row[j] = xPowers[t.x]! * yPowers[t.y]!;
             }
         }
 
@@ -109,10 +109,10 @@ export class Solver {
             
             // Partial Pivoting: Find max value in column to minimize error
             let maxRow = r;
-            let maxVal = Math.abs(this.matrix[r][lead]);
+            let maxVal = Math.abs(this.matrix[r]![lead]!);
             
             for (let i = r + 1; i < nRows; i++) {
-                let currVal = Math.abs(this.matrix[i][lead]);
+                let currVal = Math.abs(this.matrix[i]![lead]!);
                 if (currVal > maxVal) {
                     maxVal = currVal;
                     maxRow = i;
@@ -130,19 +130,19 @@ export class Solver {
             }
 
             // Swap rows
-            let temp = this.matrix[r];
-            this.matrix[r] = this.matrix[maxRow];
+            let temp = this.matrix[r]!;
+            this.matrix[r] = this.matrix[maxRow]!;
             this.matrix[maxRow] = temp;
             
             // Normalize Pivot Row
-            let val = this.matrix[r][lead];
-            for (let j = 0; j < nCols; j++) this.matrix[r][j] /= val;
+            let val = this.matrix[r]![lead]!;
+            for (let j = 0; j < nCols; j++) this.matrix[r]![j] /= val;
             
             // Eliminate other rows
             for (let k = 0; k < nRows; k++) {
                 if (k === r) continue;
-                val = this.matrix[k][lead];
-                for (let j = 0; j < nCols; j++) this.matrix[k][j] -= val * this.matrix[r][j];
+                val = this.matrix[k]![lead]!;
+                for (let j = 0; j < nCols; j++) this.matrix[k]![j] -= val * this.matrix[r]![j];
             }
             lead++;
         }
@@ -151,7 +151,7 @@ export class Solver {
         // The last column (constant/lowest term) corresponds to the '1' in the solution vector space
         this.coeffsBuffer[nCols - 1] = 1; 
         for (let i = nRows - 1; i >= 0; i--) {
-            this.coeffsBuffer[i] = -this.matrix[i][nCols - 1]; 
+            this.coeffsBuffer[i] = -this.matrix[i]![nCols - 1]!; 
         }
 
         // 4. Normalize Vector (for consistent gradient rendering)

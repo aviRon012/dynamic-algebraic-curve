@@ -9,7 +9,7 @@ export const MAX_DEGREE = 6;
 export class Simulation {
     glCanvas: HTMLCanvasElement;
     uiCanvas: HTMLCanvasElement;
-    container: HTMLElement | ShadowRoot;
+    container: HTMLElement;
     ctx: CanvasRenderingContext2D;
     width: number;
     height: number;
@@ -35,7 +35,7 @@ export class Simulation {
     fps: number;
     onFpsUpdate: ((fps: number) => void) | null;
 
-    constructor(glCanvas: HTMLCanvasElement, uiCanvas: HTMLCanvasElement, container: HTMLElement | ShadowRoot) {
+    constructor(glCanvas: HTMLCanvasElement, uiCanvas: HTMLCanvasElement, container: HTMLElement) {
         this.glCanvas = glCanvas;
         this.uiCanvas = uiCanvas;
         this.container = container;
@@ -86,15 +86,13 @@ export class Simulation {
         errorDiv.style.textAlign = 'center';
         errorDiv.innerHTML = `<h3>Initialization Error</h3><p>${msg}</p>`;
         
-        if (this.container && 'appendChild' in this.container) {
+        if (this.container) {
             this.container.appendChild(errorDiv);
         } else {
             document.body.appendChild(errorDiv);
         }
         
-        const ui = 'getElementById' in this.container 
-            ? this.container.getElementById('ui-container') 
-            : document.getElementById('ui-container');
+        const ui = document.getElementById('ui-container');
         if (ui) ui.style.display = 'none';
     }
 
@@ -117,9 +115,8 @@ export class Simulation {
     }
 
     resize() {
-        const host = (this.container as any).host;
-        const logicalWidth = host ? host.clientWidth : (this.container.clientWidth || window.innerWidth);
-        const logicalHeight = host ? host.clientHeight : (this.container.clientHeight || window.innerHeight);
+        const logicalWidth = this.container.clientWidth || window.innerWidth;
+        const logicalHeight = this.container.clientHeight || window.innerHeight;
         
         const dpr = window.devicePixelRatio || 1;
         

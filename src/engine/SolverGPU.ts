@@ -115,8 +115,8 @@ export class SolverGPU {
         // 2. Dispatch Compute
         const encoder = this.device.createCommandEncoder();
         const pass = encoder.beginComputePass();
-        pass.setPipeline(this.pipeline);
-        pass.setBindGroup(0, this.bindGroup);
+        pass.setPipeline(this.pipeline!);
+        pass.setBindGroup(0, this.bindGroup!);
         pass.dispatchWorkgroups(1);
         pass.end();
         

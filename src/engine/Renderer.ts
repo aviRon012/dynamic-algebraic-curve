@@ -54,7 +54,6 @@ export class Renderer {
         this.uniformData.set(colorArray, offset);
     }
 
-    // Explicitly allow passing an existing device (shared with Solver)
     async init(sharedDevice?: GPUDevice): Promise<string | null> {
         if (!navigator.gpu) {
             return "WebGPU is not supported.";
@@ -62,7 +61,7 @@ export class Renderer {
 
         if (sharedDevice) {
             this.device = sharedDevice;
-            this.adapter = null; // Not needed
+            this.adapter = null; 
         } else {
             this.adapter = await navigator.gpu.requestAdapter();
             if (!this.adapter) return "No WebGPU adapter found.";
@@ -84,11 +83,6 @@ export class Renderer {
             usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
         });
 
-        // Pipeline creation is delayed until draw() provides the coeffs buffer
-        // Or we assume a bindgroup layout?
-        // Actually, createPipeline handles layout 'auto'.
-        // But createBindGroup needs the coeffs buffer.
-        // So we can create pipeline, but NOT bindgroup yet.
         await this.createPipeline(this.degree);
         
         this.isReady = true;
@@ -126,9 +120,6 @@ export class Renderer {
                 topology: 'triangle-strip',
             }
         });
-        
-        // BindGroup cannot be created without Coeffs Buffer.
-        // It will be created in draw().
     }
 
     resize(width: number, height: number, scale: number) {
@@ -147,20 +138,18 @@ export class Renderer {
     async draw(coeffsBuffer: GPUBuffer) {
         if (!this.isReady || !this.device || !this.pipeline || !this.context || !this.uniformBuffer) return;
 
-        // Update Uniforms
-        this.device.queue.writeBuffer(this.uniformBuffer, 0, this.uniformData);
+        this.device.queue.writeBuffer(this.uniformBuffer, 0, this.uniformData as any);
 
-        // Re-create BindGroup if buffer changed or first time
         this.bindGroup = this.device.createBindGroup({
-            layout: this.pipeline.getBindGroupLayout(0),
+            layout: this.pipeline!.getBindGroupLayout(0),
             entries: [
-                { binding: 0, resource: { buffer: this.uniformBuffer } },
+                { binding: 0, resource: { buffer: this.uniformBuffer! } },
                 { binding: 1, resource: { buffer: coeffsBuffer } }
             ]
         });
 
         const commandEncoder = this.device.createCommandEncoder();
-        const textureView = this.context.getCurrentTexture().createView();
+        const textureView = this.context!.getCurrentTexture().createView();
 
         const renderPassDescriptor: GPURenderPassDescriptor = {
             colorAttachments: [
@@ -174,7 +163,7 @@ export class Renderer {
         };
 
         const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
-        passEncoder.setPipeline(this.pipeline);
+        passEncoder.setPipeline(this.pipeline!);
         passEncoder.setBindGroup(0, this.bindGroup);
         passEncoder.draw(4);
         passEncoder.end();
@@ -192,7 +181,7 @@ export class Renderer {
         if (!this.isReady || !this.device || !this.context) return;
         
         const commandEncoder = this.device.createCommandEncoder();
-        const textureView = this.context.getCurrentTexture().createView();
+        const textureView = this.context!.getCurrentTexture().createView();
 
         const renderPassDescriptor: GPURenderPassDescriptor = {
             colorAttachments: [
