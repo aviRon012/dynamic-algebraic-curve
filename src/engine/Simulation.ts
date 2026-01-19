@@ -127,6 +127,8 @@ export class Simulation {
         this.uiCanvas.height = logicalHeight * dpr;
         this.uiCanvas.style.width = `${logicalWidth}px`;
         this.uiCanvas.style.height = `${logicalHeight}px`;
+        
+        this.ctx.resetTransform(); // Prevent scale accumulation!
         this.ctx.scale(dpr, dpr);
         
         this.glCanvas.width = logicalWidth * dpr;
