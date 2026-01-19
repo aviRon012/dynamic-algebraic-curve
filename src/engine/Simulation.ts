@@ -41,7 +41,21 @@ export class Simulation {
     isLandscape: boolean;
 
     constructor(glCanvas: HTMLCanvasElement, uiCanvas: HTMLCanvasElement, container: HTMLElement) {
-        // ... (existing)
+        this.glCanvas = glCanvas;
+        this.uiCanvas = uiCanvas;
+        this.container = container;
+        
+        this.ctx = uiCanvas.getContext('2d')!;
+        this.width = uiCanvas.width;
+        this.height = uiCanvas.height;
+        
+        this.particles = [];
+        this.solver = null;
+        this.renderer = null;
+        
+        this.currentDegree = 2; // Default
+        this.pointCount = 0;
+        
         this.params = createDefaultParams();
         this.draggedParticle = null;
         this.needsUpdate = true;
@@ -50,7 +64,52 @@ export class Simulation {
         this.isLandscape = window.innerWidth > window.innerHeight;
         
         this.adapter = null;
-        // ...
+        this.device = null;
+        
+        this.lastTime = performance.now();
+        this.frameCount = 0;
+        this.fps = 0;
+        
+        this.onDegreeChange = null;
+        this.onPauseChange = null;
+        this.onViewModeChange = null;
+        this.onFpsUpdate = null;
+
+        // Start Initialization
+        this.init();
+    }
+
+    async init() {
+        if (!navigator.gpu) {
+            this.showError("WebGPU is not supported on this browser.");
+            return;
+        }
+
+        try {
+            this.adapter = await navigator.gpu.requestAdapter();
+            if (!this.adapter) {
+                this.showError("No WebGPU adapter found.");
+                return;
+            }
+            this.device = await this.adapter.requestDevice();
+        } catch (e) {
+            this.showError("Failed to initialize WebGPU: " + e);
+            return;
+        }
+
+        // Initial Resize to set dimensions before creating solver
+        this.resize();
+
+        // Initial Degree Setup
+        await this.setDegree(2);
+
+        // Start Loop
+        this.animate();
+    }
+
+    showError(msg: string) {
+        console.error(msg);
+        alert(msg); // Simple fallback
     }
 
     // ...
@@ -66,9 +125,20 @@ export class Simulation {
 
         const dpr = window.devicePixelRatio || 1;
         
+        // Resize Canvases (Physical Pixels)
+        this.glCanvas.width = logicalWidth * dpr;
+        this.glCanvas.height = logicalHeight * dpr;
+        
         this.uiCanvas.width = logicalWidth * dpr;
-        // ... (existing canvas resize) ...
+        this.uiCanvas.height = logicalHeight * dpr;
+        
+        // Logical Dimensions for Physics
+        this.width = logicalWidth;
         this.height = logicalHeight;
+        
+        // Reset and Scale 2D Context
+        this.ctx.setTransform(1, 0, 0, 1, 0, 0);
+        this.ctx.scale(dpr, dpr);
 
         this.updatePhysicsParams();
 
