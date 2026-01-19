@@ -195,9 +195,10 @@ function initApp() {
     });
 
     // Handle Resize specifically for the container setup
-    window.addEventListener('resize', () => {
+    const resizeObserver = new ResizeObserver(() => {
         simulation.resize();
     });
+    resizeObserver.observe(container);
 }
 
 // Start
