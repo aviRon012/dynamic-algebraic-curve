@@ -197,6 +197,7 @@ function initApp() {
     // Handle Resize specifically for the container setup
     const resizeObserver = new ResizeObserver(() => {
         simulation.resize();
+        resetIdle(); // Show UI on rotation/resize
     });
     resizeObserver.observe(container);
 }

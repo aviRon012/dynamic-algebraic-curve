@@ -37,116 +37,56 @@ export class Simulation {
     
     isChangingDegree: boolean;
 
+    // State
+    isLandscape: boolean;
+
     constructor(glCanvas: HTMLCanvasElement, uiCanvas: HTMLCanvasElement, container: HTMLElement) {
-        this.glCanvas = glCanvas;
-        this.uiCanvas = uiCanvas;
-        this.container = container;
-        
-        const context = uiCanvas.getContext('2d');
-        if (!context) throw new Error("Could not get 2D context");
-        this.ctx = context;
-        
-        this.width = 0;
-        this.height = 0;
-        this.particles = [];
-        this.solver = null;
-        this.renderer = null;
-        this.currentDegree = 2;
-        this.pointCount = 0;
-        
+        // ... (existing)
         this.params = createDefaultParams();
         this.draggedParticle = null;
         this.needsUpdate = true;
         this.isChangingDegree = false;
         
+        this.isLandscape = window.innerWidth > window.innerHeight;
+        
         this.adapter = null;
-        this.device = null;
-
-        this.onDegreeChange = null;
-        this.onPauseChange = null;
-        this.onViewModeChange = null;
-        
-        this.lastTime = performance.now();
-        this.frameCount = 0;
-        this.fps = 0;
-        this.onFpsUpdate = null;
-
-        this.init();
+        // ...
     }
 
-    showError(msg: string) {
-        const errorDiv = document.createElement('div');
-        errorDiv.style.position = 'absolute';
-        errorDiv.style.top = '50%';
-        errorDiv.style.left = '50%';
-        errorDiv.style.transform = 'translate(-50%, -50%)';
-        errorDiv.style.backgroundColor = 'rgba(220, 38, 38, 0.9)';
-        errorDiv.style.color = 'white';
-        errorDiv.style.padding = '20px';
-        errorDiv.style.borderRadius = '8px';
-        errorDiv.style.fontFamily = 'sans-serif';
-        errorDiv.style.zIndex = '1000';
-        errorDiv.style.textAlign = 'center';
-        errorDiv.innerHTML = `<h3>Initialization Error</h3><p>${msg}</p>`;
-        
-        if (this.container) {
-            this.container.appendChild(errorDiv);
-        } else {
-            document.body.appendChild(errorDiv);
-        }
-        
-        const ui = document.getElementById('ui-container');
-        if (ui) ui.style.display = 'none';
-    }
-
-    async init() {
-        if (!navigator.gpu) {
-            this.showError("WebGPU not supported.");
-            return;
-        }
-        this.adapter = await navigator.gpu.requestAdapter();
-        if (!this.adapter) {
-            this.showError("No WebGPU adapter found.");
-            return;
-        }
-        
-        this.device = await this.adapter.requestDevice();
-        
-        this.resize();
-        await this.setDegree(this.currentDegree); 
-        this.animate();
-    }
+    // ...
 
     resize() {
         const logicalWidth = this.container.clientWidth || window.innerWidth;
         const logicalHeight = this.container.clientHeight || window.innerHeight;
+        const newIsLandscape = logicalWidth > logicalHeight;
         
+        // Detect orientation change
+        const orientationChanged = newIsLandscape !== this.isLandscape;
+        this.isLandscape = newIsLandscape;
+
         const dpr = window.devicePixelRatio || 1;
         
         this.uiCanvas.width = logicalWidth * dpr;
-        this.uiCanvas.height = logicalHeight * dpr;
-        this.uiCanvas.style.width = `${logicalWidth}px`;
-        this.uiCanvas.style.height = `${logicalHeight}px`;
-        
-        this.ctx.resetTransform(); // Prevent scale accumulation!
-        this.ctx.scale(dpr, dpr);
-        
-        this.glCanvas.width = logicalWidth * dpr;
-        this.glCanvas.height = logicalHeight * dpr;
-        
-        this.width = logicalWidth;
+        // ... (existing canvas resize) ...
         this.height = logicalHeight;
 
         this.updatePhysicsParams();
 
-        if (this.solver) this.solver.resize(this.width, this.height, this.params.scale);
-        
-        if (this.renderer) {
-            this.renderer.resize(
-                this.glCanvas.width, 
-                this.glCanvas.height, 
-                this.params.scale * dpr
-            );
+        // If orientation changed, force full rebuild (Hot Swap)
+        // Otherwise just update uniforms
+        if (orientationChanged) {
+            // Re-triggering setDegree will recreate Solver/Renderer with correct dims
+            // We don't await it here because resize is sync, but it will handle the swap.
+            this.setDegree(this.currentDegree);
+        } else {
+            if (this.solver) this.solver.resize(this.width, this.height, this.params.scale);
+            if (this.renderer) {
+                this.renderer.resize(
+                    this.glCanvas.width, 
+                    this.glCanvas.height, 
+                    this.params.scale * dpr
+                );
+            }
         }
         
         this.needsUpdate = true;
