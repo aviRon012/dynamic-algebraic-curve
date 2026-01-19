@@ -34,6 +34,8 @@ export class Simulation {
     frameCount: number;
     fps: number;
     onFpsUpdate: ((fps: number) => void) | null;
+    
+    isChangingDegree: boolean;
 
     constructor(glCanvas: HTMLCanvasElement, uiCanvas: HTMLCanvasElement, container: HTMLElement) {
         this.glCanvas = glCanvas;
@@ -55,6 +57,7 @@ export class Simulation {
         this.params = createDefaultParams();
         this.draggedParticle = null;
         this.needsUpdate = true;
+        this.isChangingDegree = false;
         
         this.adapter = null;
         this.device = null;
@@ -160,42 +163,80 @@ export class Simulation {
     }
 
     async setDegree(newDegree: number) {
+        if (this.isChangingDegree) return;
         if (newDegree < MIN_DEGREE || newDegree > MAX_DEGREE) return;
-        this.currentDegree = newDegree;
         
-        const termCount = ((this.currentDegree + 1) * (this.currentDegree + 2)) / 2;
-        this.pointCount = termCount - 1;
+        this.isChangingDegree = true;
         
-        this.updatePhysicsParams();
-        this.spawnParticles();
-
-        if (this.device) {
-            await this.device.queue.onSubmittedWorkDone();
-        }
-
-        if (this.renderer) this.renderer.dispose();
-        if (this.solver) this.solver.dispose();
-
-        if (!this.device) return;
-
-        this.solver = new SolverGPU(this.device, this.currentDegree);
-        this.renderer = new Renderer(this.glCanvas, this.currentDegree);
+        const termCount = ((newDegree + 1) * (newDegree + 2)) / 2;
+        const nextPointCount = termCount - 1;
         
-        const error = await this.renderer.init(this.device);
-        if (error) {
-            this.showError(error);
+        if (!this.device) {
+            this.isChangingDegree = false;
             return;
         }
 
-        this.solver.resize(this.width, this.height, this.params.scale);
-        this.renderer.resize(
+        // 1. Create NEW resources in background
+        const nextSolver = new SolverGPU(this.device, newDegree);
+        const nextRenderer = new Renderer(this.glCanvas, newDegree);
+        
+        const error = await nextRenderer.init(this.device);
+        if (error) {
+            this.showError(error);
+            this.isChangingDegree = false;
+            return;
+        }
+
+        // 2. Prepare NEW state
+        nextSolver.resize(this.width, this.height, this.params.scale);
+        nextRenderer.resize(
             this.glCanvas.width, 
             this.glCanvas.height, 
             this.params.scale * (window.devicePixelRatio || 1)
         );
+
+        // 3. Prepare NEW particles and Pre-Warm Solver
+        const nextParticles: Particle[] = [];
+        const margin = this.params.minDistance;
+        for (let i = 0; i < nextPointCount; i++) {
+            let x = Math.random() * (this.width - margin * 2) + margin;
+            let y = Math.random() * (this.height - margin * 2) + margin;
+            nextParticles.push(new Particle(x, y));
+        }
+        
+        // Ensure Solver is ready before calling solve
+        // (SolverGPU.initPipeline is async and called in constructor)
+        // We wait for it here if needed
+        while (!nextSolver.isReady) {
+            await new Promise(r => setTimeout(r, 10));
+        }
+        
+        nextSolver.solve(nextParticles);
+
+        // 4. THE SWAP (Atomic)
+        const oldRenderer = this.renderer;
+        const oldSolver = this.solver;
+        
+        this.currentDegree = newDegree;
+        this.pointCount = nextPointCount;
+        this.solver = nextSolver;
+        this.renderer = nextRenderer;
+        this.particles = nextParticles;
+        
+        this.updatePhysicsParams();
+        
+        // 5. Dispose OLD resources safely
+        if (this.device) {
+            await this.device.queue.onSubmittedWorkDone();
+        }
+        
+        if (oldRenderer) oldRenderer.dispose();
+        if (oldSolver) oldSolver.dispose();
         
         this.needsUpdate = true;
         if (this.onDegreeChange) this.onDegreeChange(this.currentDegree);
+        
+        this.isChangingDegree = false;
     }
 
     spawnParticles() {

@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Background: Dark Blue Rounded Square -->
+  <rect x="0" y="0" width="64" height="64" rx="12" fill="#0f172a" />
+  
+  <!-- Curve: Growth/Pulse Wave -->
+  <!-- M 12,52 (Start Low) -> 26,20 (Peak) -> 42,44 (Dip) -> 52,12 (End High) -->
+  <path d="M 12,52 C 18,52 18,20 26,20 S 34,44 42,44 S 52,12 52,12" 
+        stroke="#2dd4bf" stroke-width="5" fill="none" 
+        stroke-linecap="round" stroke-linejoin="round"/>
+  
+  <!-- Points: Yellow Dots at key inflections -->
+  <circle cx="12" cy="52" r="3.5" fill="#fbbf24" />
+  <circle cx="26" cy="20" r="3.5" fill="#fbbf24" />
+  <circle cx="42" cy="44" r="3.5" fill="#fbbf24" />
+  <circle cx="52" cy="12" r="3.5" fill="#fbbf24" />
+</svg>
